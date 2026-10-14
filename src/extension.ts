@@ -15,7 +15,7 @@ import {
 
 // build.ts inlines this HTML (with the bundled ui/app.ts) as a string.
 import dialogHtml from "../ui/interface.html";
-import type { Init, Result, Settings } from "./protocol.ts";
+import type { Cancelled, Init, Result, Settings } from "./protocol.ts";
 
 type Context = ExtensionContext<"1.0.0">;
 
@@ -96,10 +96,10 @@ async function openDialog(context: Context): Promise<Result | null> {
   const json = JSON.stringify(init).replace(/</g, "\\u003c");
   const html = dialogHtml.replace("window.__INIT__ = null;", () => `window.__INIT__ = ${json};`);
   const raw = await context.ui.showModalDialog(`data:text/html,${encodeURIComponent(html)}`, 720, 540);
-  if (!raw) return null; // cancelled
-  const result = JSON.parse(raw) as Result;
-  saveSettings(context, result.settings);
-  return result;
+  if (!raw) return null; // window closed
+  const reply = JSON.parse(raw) as Result | Cancelled;
+  saveSettings(context, reply.settings);
+  return "cancelled" in reply ? null : reply;
 }
 
 function settingsFile(context: Context): string | null {

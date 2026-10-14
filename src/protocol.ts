@@ -20,6 +20,8 @@ export interface Settings {
   rhythm: string;
   swing: number;
   push: boolean;
+  /** Dialog theme; dark matches Live's default. */
+  theme?: "dark" | "light";
 }
 
 export interface Init {
@@ -28,6 +30,12 @@ export interface Init {
   tempo: number;
   /** Settings from the last time the dialog was confirmed. */
   saved: Settings | null;
+}
+
+/** Sent when the dialog is cancelled, so settings like the theme still stick. */
+export interface Cancelled {
+  cancelled: true;
+  settings: Settings;
 }
 
 export interface Result {

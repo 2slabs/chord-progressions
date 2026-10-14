@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <title>chord progressions</title>
@@ -27,7 +27,10 @@
         --hue-orange: #3E1400;
         --hue-green: #003E00;
         --hue-blue: #00003E;
+        --hue-ink: #000000;
         --hue: var(--hue-blue); /* the current style's pad colour, set from JS */
+        --pad-text: #FFFFFF; /* text on lit pads, in both themes */
+        --pad-edge: #000000;
 
         /* Cozette is pixel-aligned only at multiples of 13px */
         --font: "Cozette", Monaco, monospace;
@@ -36,6 +39,24 @@
         --line: 18px;
         --unit: 4px;
       }
+      /* Dark: the same tokens flipped to sit next to Live's dark theme. Ink becomes
+         the light grey, the pad becomes Live's panel grey, and the Launchpad hues
+         go up to roughly half brightness so lit pads still read against it. */
+      :root[data-theme="dark"] {
+        --pad: #262626;
+        --ink: #D5D8DB;
+        --unlit: #7E848B;
+        --inverse: #262626;
+        --now: #4A72FF;
+        --hue-red: #6A0000;
+        --hue-orange: #6A2300;
+        --hue-green: #005A00;
+        --hue-blue: #00006A;
+        --hue-ink: #0A0A0A;
+        --pad-edge: #000000;
+      }
+      :root[data-theme="dark"] ::selection { color: #000000; }
+
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body { height: 100%; }
       body {
@@ -127,7 +148,7 @@
       /* --- progression: lit pads in the style's colour --- */
       #cards { display: grid; gap: calc(var(--unit) * 2); flex: 1; min-height: 0; grid-auto-rows: minmax(0, 1fr); }
       .pad {
-        position: relative; background: var(--hue); color: var(--inverse); border: 1px solid var(--ink);
+        position: relative; background: var(--hue); color: var(--pad-text); border: 1px solid var(--pad-edge);
         display: flex; flex-direction: column; justify-content: space-between; padding: var(--unit) calc(var(--unit) * 2);
         cursor: pointer; min-width: 0; min-height: 0; overflow: hidden; text-align: left;
       }
@@ -139,9 +160,9 @@
       .pad .name { white-space: nowrap; }
       .pad .reroll {
         position: absolute; top: var(--unit); right: var(--unit); background: transparent; border: 1px solid transparent;
-        color: var(--inverse); padding: 0 var(--unit); cursor: pointer;
+        color: var(--pad-text); padding: 0 var(--unit); cursor: pointer;
       }
-      .pad .reroll:hover { border-color: var(--inverse); }
+      .pad .reroll:hover { border-color: var(--pad-text); }
 
       /* --- footer: key hints that are also the buttons, as in LPX Grid --- */
       footer { display: flex; align-items: center; gap: calc(var(--unit) * 4); }
@@ -161,6 +182,7 @@
       <span class="status" id="status"></span>
       <span class="spacer"></span>
       <span class="status" id="tempo"></span>
+      <span class="chips" id="theme" title="dialog theme"></span>
     </header>
 
     <div>

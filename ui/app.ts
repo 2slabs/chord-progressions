@@ -5,7 +5,7 @@ import {
 } from "../src/theory.ts";
 import { RHYTHMS, barOf, customRhythm, isRhythm, toNotes } from "../src/rhythm.ts";
 import { STYLES, styleById, type Style } from "../src/styles.ts";
-import type { Init, Result, Settings } from "../src/protocol.ts";
+import type { Cancelled, Init, Result, Settings } from "../src/protocol.ts";
 
 declare global {
   interface Window {
@@ -124,7 +124,7 @@ function dropdown(id: string, get: () => string, set: (v: string) => void) {
 function setupControls() {
   // style chips, each with its pad colour
   chips("style", STYLES.map((s) => [s.id, s.label.toLowerCase()]), () => settings.style, (v) => {
-    settings = fromStyle(styleById(v), settings.root);
+    settings = { ...fromStyle(styleById(v), settings.root), theme: settings.theme };
     syncs.forEach((f) => f());
     regenerate();
   });
@@ -181,6 +181,10 @@ function setupControls() {
   chips("push", [["false", "off"], ["true", "on"]], () => String(settings.push), (v) => {
     settings.push = v === "true";
     changed();
+  });
+  chips("theme", [["dark", "dark"], ["light", "light"]], () => settings.theme ?? "dark", (v) => {
+    settings.theme = v as "dark" | "light";
+    applyTheme();
   });
 
   // rhythm: grouped dropdown, plus "custom" once the step grid has been edited
@@ -239,20 +243,20 @@ function setupControls() {
 
   $("generate").onclick = regenerate;
   $("play").onclick = togglePreview;
-  $("cancel").onclick = () => closeWith("");
+  $("cancel").onclick = cancel;
   $("insert").onclick = insert;
 
   document.addEventListener("keydown", (e) => {
     if ((e.target instanceof HTMLSelectElement || e.target instanceof HTMLInputElement) && e.key !== "Escape") return;
     if (e.key === "Enter") insert();
-    else if (e.key === "Escape") closeWith("");
+    else if (e.key === "Escape") cancel();
     else if (e.key === " ") { e.preventDefault(); togglePreview(); }
     else if (e.key === "g" || e.key === "G") regenerate();
   });
 }
 
 function hueVar(hue: Style["hue"]) {
-  return hue === "ink" || hue === "unlit" ? `var(--${hue})` : `var(--hue-${hue})`;
+  return hue === "unlit" ? "var(--unlit)" : `var(--hue-${hue})`;
 }
 
 // ---- rendering -----------------------------------------------------------------
@@ -275,7 +279,12 @@ function keyName() {
   return `${noteNames(settings.root, intervals())[settings.root]} ${scaleName.toLowerCase()}`;
 }
 
+function applyTheme() {
+  document.documentElement.dataset.theme = settings.theme ?? "dark";
+}
+
 function render() {
+  applyTheme();
   const style = styleById(settings.style);
   document.documentElement.style.setProperty("--hue", hueVar(style.hue));
   $("blurb").textContent = style.blurb.toLowerCase();
@@ -338,6 +347,12 @@ function renderSteps() {
     };
     grid.append(b);
   });
+}
+
+function cancel() {
+  stopPreview();
+  const message: Cancelled = { cancelled: true, settings };
+  closeWith(JSON.stringify(message));
 }
 
 function insert() {
