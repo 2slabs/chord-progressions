@@ -8,3 +8,4 @@ vendor/
 *.tsbuildinfo
 
 .env
+.dev-storage/
