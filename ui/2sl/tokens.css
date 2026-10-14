@@ -1,0 +1,71 @@
+/* 2sl-ui tokens: the 2sl look (https://2sl.to, "LPX Grid") for Ableton tools.
+   Light is the site; dark is the same system flipped to sit next to Live.
+   Set <html data-theme="dark"> or "light". See README.md for the rules. */
+
+@font-face {
+  font-family: "Cozette";
+  src: url("./fonts/CozetteVector.woff2") format("woff2");
+  font-display: block;
+}
+
+:root {
+  /* surfaces and ink (2sl.to) */
+  --pad: #D5D8DB;      /* background */
+  --ink: #000000;      /* text, outlines, selected fill */
+  --inverse: #FFFFFF;  /* text on ink */
+  --unlit: #737980;    /* decoration only: fills, ticks, swatches, rests. Not for text. */
+  --label: #595E65;    /* secondary text (labels, hints): WCAG AA on --pad */
+  --now: #2D5BFF;      /* hover, focus, playing, "this is happening" */
+  --mint: #72DEC2;     /* text selection */
+
+  /* Launchpad row hues for lit pads and category tags; always with --pad-text */
+  --hue-red: #3E0000;
+  --hue-orange: #3E1400;
+  --hue-green: #003E00;
+  --hue-blue: #00003E;
+  --hue-ink: #000000;
+  --hue-grey: #464B51;
+  --pad-text: #FFFFFF;
+  --pad-edge: #000000;
+
+  /* type: Cozette is pixel-aligned only at multiples of 13px. Use 13 / 26 / 39, nothing else. */
+  --font: "Cozette", Monaco, monospace;
+  --small: 13px;
+  --large: 26px;
+  --huge: 39px;
+  --line: 18px;
+
+  /* space: a 4px grid */
+  --unit: 4px;
+}
+
+:root[data-theme="dark"], [data-theme="dark"] {
+  --pad: #262626;      /* Live's dark panel grey */
+  --ink: #D5D8DB;      /* the site's pad grey becomes the ink */
+  --inverse: #262626;
+  --unlit: #7E848B;
+  --label: #8E949B;
+  /* Hues up to ~half brightness so lit pads read against the dark pad */
+  --hue-red: #6A0000;
+  --hue-orange: #6A2300;
+  --hue-green: #005A00;
+  --hue-blue: #00006A;
+  --hue-ink: #0A0A0A;
+  --hue-grey: #4A4F55;
+}
+
+/* base: apply to any 2sl-ui page */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, [data-theme] { background: var(--pad); color: var(--ink); }
+body {
+  font: var(--small)/var(--line) var(--font);
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-synthesis: none;
+  cursor: default;
+}
+button, select, input { font: inherit; color: inherit; }
+::selection { background: var(--mint); color: #000000; }
+:focus-visible { outline: 1px solid var(--now); outline-offset: 2px; }

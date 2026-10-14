@@ -5,11 +5,20 @@ import * as path from "node:path";
 const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
 const production = process.argv.includes("--production");
 
-// Dialogs are loaded from a data: URL, so they can't fetch anything. Bundle each
-// <script type="module" src="..."> in an imported .html file and inline it, and
-// inline url("./...") assets.
-const inlineUiScripts: esbuild.Plugin = {
-  name: "inline-ui-scripts",
+// Dialogs are loaded from a data: URL, so they can't fetch anything. For each
+// imported .html file: bundle and inline <script type="module" src>, inline
+// <link rel="stylesheet">, and turn url("./...") assets into data: URIs.
+function inlineUrls(text: string, dir: string, watchFiles: string[]): string {
+  return text.replace(/url\("(\.\/[^"]+)"\)/g, (_, rel: string) => {
+    const file = path.resolve(dir, rel);
+    watchFiles.push(file);
+    const type = rel.endsWith(".woff2") ? "font/woff2" : "application/octet-stream";
+    return `url("data:${type};base64,${fs.readFileSync(file).toString("base64")}")`;
+  });
+}
+
+const inlineUi: esbuild.Plugin = {
+  name: "inline-ui",
   setup(build) {
     build.onLoad({ filter: /\.html$/ }, async (args) => {
       let html = await fs.promises.readFile(args.path, "utf8");
@@ -29,13 +38,14 @@ const inlineUiScripts: esbuild.Plugin = {
         const js = out.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
         html = html.replace(tag, () => `<script>${js}</script>`);
       }
-      // Fonts and other assets referenced as url("./...") become data: URIs.
-      html = html.replace(/url\("(\.\/[^"]+)"\)/g, (_, rel: string) => {
-        const file = path.resolve(path.dirname(args.path), rel);
+      // Stylesheets become <style> blocks; url("./...") assets (fonts) become data: URIs.
+      for (const tag of html.match(/<link rel="stylesheet" href="[^"]+"\s*\/?>/g) ?? []) {
+        const file = path.resolve(path.dirname(args.path), tag.match(/href="([^"]+)"/)![1]);
         watchFiles.push(file);
-        const type = rel.endsWith(".woff2") ? "font/woff2" : "application/octet-stream";
-        return `url("data:${type};base64,${fs.readFileSync(file).toString("base64")}")`;
-      });
+        const css = inlineUrls(fs.readFileSync(file, "utf8"), path.dirname(file), watchFiles);
+        html = html.replace(tag, () => `<style>${css}</style>`);
+      }
+      html = inlineUrls(html, path.dirname(args.path), watchFiles);
       return { contents: html, loader: "text", watchFiles };
     });
   },
@@ -51,5 +61,5 @@ await esbuild.build({
   logLevel: "info",
   minify: production,
   sourcemap: !production,
-  plugins: [inlineUiScripts],
+  plugins: [inlineUi],
 });

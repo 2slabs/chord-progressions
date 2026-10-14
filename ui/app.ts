@@ -6,24 +6,16 @@ import {
 import { RHYTHMS, barOf, customRhythm, isRhythm, toNotes } from "../src/rhythm.ts";
 import { STYLES, styleById, type Style } from "../src/styles.ts";
 import type { Cancelled, Init, Result, Settings } from "../src/protocol.ts";
+import { applyTheme, closeDialog, fillSelect, radioGroup, slider, toggle } from "./2sl/ui.ts";
 
 declare global {
   interface Window {
     __INIT__: Init | null;
-    webkit?: { messageHandlers?: { live?: { postMessage(m: unknown): void } } };
-    chrome?: { webview?: { postMessage(m: unknown): void } };
   }
 }
 
 const init: Init = window.__INIT__ ?? { live: null, tempo: 122, saved: null };
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-
-function closeWith(result: string) {
-  const message = { method: "close_and_send", params: [result] };
-  if (window.webkit?.messageHandlers?.live) window.webkit.messageHandlers.live.postMessage(message);
-  else if (window.chrome?.webview) window.chrome.webview.postMessage(message);
-  else console.log("close_and_send", result); // running in a normal browser via `npm run ui`
-}
 
 // ---- state -----------------------------------------------------------------
 
@@ -89,10 +81,12 @@ function notes(): Note[] {
 }
 
 // ---- controls ----------------------------------------------------------------
+// Per 2sl-ui (and Ableton's extension design guide): radio chips for ≤ 5 options,
+// selects for more, toggles for on/off, a slider for continuous ranges.
 
 const CHORD_LABELS: [ChordType, string][] = [
-  ["triad", "triad"], ["mixed", "triad+7"], ["seventh", "7th"], ["ninth", "9th"],
-  ["eleventh", "11th"], ["sus2", "sus2"], ["sus4", "sus4"], ["quartal", "4ths"],
+  ["triad", "triads"], ["mixed", "triads + 7ths"], ["seventh", "7ths"], ["ninth", "9ths"],
+  ["eleventh", "11ths"], ["sus2", "sus2"], ["sus4", "sus4"], ["quartal", "quartal (4ths)"],
 ];
 const LENGTHS: [string, string][] = [["2", "2 beats"], ["4", "1 bar"], ["8", "2 bars"], ["16", "4 bars"]];
 const SWING_PRESETS = [54, 58, 62, 66, 71];
@@ -100,101 +94,89 @@ const SWING_PRESETS = [54, 58, 62, 66, 71];
 /** Re-sync every control from `settings` (after a style change). */
 const syncs: (() => void)[] = [];
 
-/** A row of outlined choices; the current one is inverted. */
-function chips(id: string, options: [string, string][], get: () => string, set: (v: string) => void) {
-  const group = $(id);
-  group.innerHTML = "";
-  for (const [value, label] of options) {
-    const b = document.createElement("button");
-    b.dataset.v = value;
-    b.textContent = label;
-    b.onclick = () => { set(value); sync(); };
-    group.append(b);
-  }
-  const sync = () => group.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === get())));
-  syncs.push(sync);
-}
-
-function dropdown(id: string, get: () => string, set: (v: string) => void) {
+function dropdown(id: string, options: { value: string; label: string; group?: string }[] | null, get: () => string, set: (v: string) => void) {
   const el = $<HTMLSelectElement>(id);
+  if (options) fillSelect(el, options);
+  el.classList.add("ui-select");
   el.onchange = () => set(el.value);
   syncs.push(() => (el.value = get()));
 }
 
 function setupControls() {
-  // style chips, each with its pad colour
-  chips("style", STYLES.map((s) => [s.id, s.label.toLowerCase()]), () => settings.style, (v) => {
+  dropdown("style", STYLES.map((s) => ({ value: s.id, label: s.label.toLowerCase() })), () => settings.style, (v) => {
     settings = { ...fromStyle(styleById(v), settings.root), theme: settings.theme };
     syncs.forEach((f) => f());
     regenerate();
   });
-  $("style").querySelectorAll("button").forEach((b) => {
-    const swatch = document.createElement("i");
-    swatch.style.background = hueVar(styleById(b.dataset.v!).hue);
-    b.prepend(swatch);
-  });
 
-  for (const [i, label] of ROOT_LABELS.entries()) $<HTMLSelectElement>("root").add(new Option(label, String(i)));
-  dropdown("root", () => String(settings.root), (v) => {
+  dropdown("root", ROOT_LABELS.map((label, i) => ({ value: String(i), label })), () => String(settings.root), (v) => {
     settings.root = Number(v);
     changed(); // same degrees, transposed
   });
 
-  for (const k of scaleKeys) $<HTMLSelectElement>("scale").add(new Option(k.toLowerCase(), k));
-  if (liveUsable && !scaleKeys.includes(init.live!.name)) $<HTMLSelectElement>("scale").add(new Option(`${init.live!.name.toLowerCase()} (live)`, "live"));
-  dropdown("scale", () => settings.scale, (v) => {
+  const scales = scaleKeys.map((k) => ({ value: k, label: k.toLowerCase() }));
+  if (liveUsable && !scaleKeys.includes(init.live!.name)) scales.push({ value: "live", label: `${init.live!.name.toLowerCase()} (live)` });
+  dropdown("scale", scales, () => settings.scale, (v) => {
     const sameSize = (v === "live" ? init.live!.intervals : SCALES[v]).length === intervals().length;
     settings.scale = v;
     if (sameSize) changed();
     else regenerate();
   });
 
-  chips("count", ["1", "2", "3", "4", "6", "8"].map((n) => [n, n]), () => String(settings.count), (v) => {
+  dropdown("count", [1, 2, 3, 4, 6, 8].map((n) => ({ value: String(n), label: `${n} chord${n === 1 ? "" : "s"}` })), () => String(settings.count), (v) => {
     settings.count = Number(v);
     regenerate();
   });
-  chips("chord", CHORD_LABELS, () => settings.chord, (v) => {
+  dropdown("chord", CHORD_LABELS.map(([value, label]) => ({ value, label })), () => settings.chord, (v) => {
     settings.chord = v as ChordType;
     steps = steps.map((s) => ({ ...s, seventh: rollSeventh(settings.chord, Math.random) }));
     changed();
   });
-  chips("length", LENGTHS, () => String(settings.beatsPerChord), (v) => {
-    settings.beatsPerChord = Number(v);
-    changed();
-  });
-  chips("movement", [["diatonic", "diatonic"], ["parallel", "parallel"]], () => settings.movement, (v) => {
-    settings.movement = v as Movement;
-    changed();
-  });
-  chips("voicing", [["smooth", "smooth"], ["close", "close"], ["spread", "spread"]], () => settings.voicing, (v) => {
-    settings.voicing = v as VoicingMode;
-    changed();
-  });
-  chips("register", [["48", "low"], ["60", "mid"], ["72", "high"]], () => String(settings.register), (v) => {
-    settings.register = Number(v);
-    changed();
-  });
-  chips("bass", [["true", "on"], ["false", "off"]], () => String(settings.bass), (v) => {
-    settings.bass = v === "true";
-    changed();
-  });
-  chips("push", [["false", "off"], ["true", "on"]], () => String(settings.push), (v) => {
-    settings.push = v === "true";
-    changed();
-  });
-  chips("theme", [["dark", "dark"], ["light", "light"]], () => settings.theme ?? "dark", (v) => {
-    settings.theme = v as "dark" | "light";
-    applyTheme();
-  });
 
-  // rhythm: grouped dropdown, plus "custom" once the step grid has been edited
+  syncs.push(
+    radioGroup($("length"), LENGTHS, () => String(settings.beatsPerChord), (v) => {
+      settings.beatsPerChord = Number(v);
+      changed();
+    }),
+    radioGroup($("movement"), [["diatonic", "diatonic"], ["parallel", "parallel"]], () => settings.movement, (v) => {
+      settings.movement = v as Movement;
+      changed();
+    }),
+    radioGroup($("voicing"), [["smooth", "smooth"], ["close", "close"], ["spread", "spread"]], () => settings.voicing, (v) => {
+      settings.voicing = v as VoicingMode;
+      changed();
+    }),
+    radioGroup($("register"), [["48", "low"], ["60", "mid"], ["72", "high"]], () => String(settings.register), (v) => {
+      settings.register = Number(v);
+      changed();
+    }),
+    toggle($("bass"), () => settings.bass, (on) => {
+      settings.bass = on;
+      changed();
+    }),
+    toggle($("push"), () => settings.push, (on) => {
+      settings.push = on;
+      changed();
+    }),
+    radioGroup($("theme"), [["dark", "dark"], ["light", "light"]], () => settings.theme ?? "dark", (v) => {
+      settings.theme = v as "dark" | "light";
+      applyTheme(settings.theme);
+    }),
+    slider(
+      $("swing"),
+      $("swing-presets"),
+      { min: 50, max: 75, marks: SWING_PRESETS, valueEl: $("swing-value"), format: (v) => (v === 50 ? "straight" : `${v}%`) },
+      () => settings.swing,
+      (v, final) => {
+        settings.swing = v;
+        if (final) changed();
+      },
+    ),
+  );
+
+  // rhythm: grouped select, plus "custom" once the step grid has been edited
   const rhythm = $<HTMLSelectElement>("rhythm");
-  for (const group of new Set(RHYTHMS.map((r) => r.group))) {
-    const og = document.createElement("optgroup");
-    og.label = group.toLowerCase();
-    for (const r of RHYTHMS.filter((r) => r.group === group)) og.append(new Option(r.label.toLowerCase(), r.id));
-    rhythm.append(og);
-  }
+  fillSelect(rhythm, RHYTHMS.map((r) => ({ value: r.id, label: r.label.toLowerCase(), group: r.group.toLowerCase() })));
   const custom = new Option("custom (drawn)", "");
   rhythm.append(custom);
   rhythm.onchange = () => {
@@ -203,41 +185,10 @@ function setupControls() {
   };
   syncs.push(() => {
     const isCustom = settings.rhythm.startsWith("custom:");
-    custom.hidden = !isCustom;
+    custom.disabled = !isCustom;
     custom.value = isCustom ? settings.rhythm : "";
     rhythm.value = settings.rhythm;
   });
-
-  // swing: a slider with the standard values marked and clickable
-  const swing = $<HTMLInputElement>("swing");
-  swing.oninput = () => {
-    settings.swing = Number(swing.value);
-    syncSwing();
-  };
-  swing.onchange = () => changed();
-  const ticks = $("swing-ticks");
-  const presets = $("swing-presets");
-  for (const v of SWING_PRESETS) {
-    const t = document.createElement("span");
-    t.style.left = `calc(${((v - 50) / 25) * 100}% - ${((v - 50) / 25) * 8 - 4}px)`; // align with the thumb's centre
-    ticks.append(t);
-    const b = document.createElement("button");
-    b.textContent = String(v);
-    b.title = `${v}% swing`;
-    b.dataset.v = String(v);
-    b.onclick = () => {
-      settings.swing = v;
-      syncSwing();
-      changed();
-    };
-    presets.append(b);
-  }
-  const syncSwing = () => {
-    swing.value = String(settings.swing);
-    $("swing-value").textContent = settings.swing === 50 ? "straight" : `${settings.swing}%`;
-    presets.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.v) === settings.swing)));
-  };
-  syncs.push(syncSwing);
 
   syncs.forEach((f) => f());
 
@@ -256,7 +207,7 @@ function setupControls() {
 }
 
 function hueVar(hue: Style["hue"]) {
-  return hue === "unlit" ? "var(--unlit)" : `var(--hue-${hue})`;
+  return hue === "unlit" ? "var(--hue-grey)" : `var(--hue-${hue})`;
 }
 
 // ---- rendering -----------------------------------------------------------------
@@ -279,12 +230,8 @@ function keyName() {
   return `${noteNames(settings.root, intervals())[settings.root]} ${scaleName.toLowerCase()}`;
 }
 
-function applyTheme() {
-  document.documentElement.dataset.theme = settings.theme ?? "dark";
-}
-
 function render() {
-  applyTheme();
+  applyTheme(settings.theme ?? "dark");
   const style = styleById(settings.style);
   document.documentElement.style.setProperty("--hue", hueVar(style.hue));
   $("blurb").textContent = style.blurb.toLowerCase();
@@ -303,14 +250,14 @@ function render() {
   cards.innerHTML = "";
   list.forEach((chord, i) => {
     const pad = document.createElement("div");
-    pad.className = "pad";
-    pad.innerHTML = `<span class="top"><span class="index"></span><span class="name"></span></span>
-      <span class="numeral"></span><button class="reroll" title="re-roll this chord">↻</button>`;
+    pad.className = "ui-pad";
+    pad.innerHTML = `<span><span class="dim index"></span>&nbsp; <span class="name"></span></span>
+      <span class="big"></span><button class="corner" title="re-roll this chord">↻</button>`;
     pad.querySelector(".index")!.textContent = String(i + 1);
-    pad.querySelector(".numeral")!.textContent = chord.numeral;
     pad.querySelector(".name")!.textContent = chord.name;
+    pad.querySelector(".big")!.textContent = chord.numeral;
     pad.onclick = () => audition(i);
-    pad.querySelector<HTMLButtonElement>(".reroll")!.onclick = (e) => {
+    pad.querySelector<HTMLButtonElement>(".corner")!.onclick = (e) => {
       e.stopPropagation();
       steps = reroll(intervals(), steps, i, settings.chord, harmony());
       render();
@@ -352,7 +299,7 @@ function renderSteps() {
 function cancel() {
   stopPreview();
   const message: Cancelled = { cancelled: true, settings };
-  closeWith(JSON.stringify(message));
+  closeDialog(JSON.stringify(message));
 }
 
 function insert() {
@@ -364,7 +311,7 @@ function insert() {
     notes: notes(),
     settings,
   };
-  closeWith(JSON.stringify(result));
+  closeDialog(JSON.stringify(result));
 }
 
 // ---- preview synth -------------------------------------------------------------
@@ -504,7 +451,7 @@ function stopPreview() {
 }
 
 function highlight(i: number) {
-  document.querySelectorAll(".pad").forEach((c, j) => c.classList.toggle("playing", j === i));
+  document.querySelectorAll(".ui-pad").forEach((c, j) => c.classList.toggle("playing", j === i));
 }
 
 // Wait for the pixel font so nothing renders in the fallback first.

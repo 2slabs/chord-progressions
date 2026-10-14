@@ -1,0 +1,114 @@
+/* 2sl-ui components. Requires tokens.css. Usage rules (including Ableton's
+   Extensions design guide, which the SDK licence requires us to follow) are in README.md. */
+
+/* --- header: wordmark-style title, status text, optional right side --- */
+.ui-header { display: flex; align-items: center; gap: calc(var(--unit) * 3); }
+.ui-header .spacer { flex: 1; }
+.ui-wordmark { background: var(--ink); color: var(--inverse); padding: 0 calc(var(--unit) * 2); }
+.ui-status { color: var(--label); display: flex; gap: calc(var(--unit) * 4); }
+.ui-status b { color: var(--ink); font-weight: normal; }
+.ui-hint { color: var(--label); }
+
+/* --- params: label column + control column, two pairs per row --- */
+.ui-params {
+  display: grid; grid-template-columns: 8ch auto 8ch auto;
+  gap: calc(var(--unit) * 2) calc(var(--unit) * 3); align-items: center; justify-content: start;
+}
+.ui-params > .label, .ui-label { color: var(--label); }
+.ui-rule { border-top: 1px solid var(--ink); }
+
+/* --- radio group (chips): ≤ 5 options, equal widths, the current one inverted --- */
+.ui-chips { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--unit); justify-self: start; }
+.ui-chips button {
+  background: transparent; border: 1px solid var(--ink); padding: 0 calc(var(--unit) * 1.5);
+  line-height: calc(var(--line) - 2px); cursor: pointer; white-space: nowrap;
+}
+.ui-chips button:hover { background: var(--ink); color: var(--inverse); }
+.ui-chips button[aria-checked="true"] { background: var(--ink); color: var(--inverse); }
+.ui-chips button[aria-checked="true"]:hover { background: var(--now); border-color: var(--now); color: #FFFFFF; }
+.ui-chips button:disabled { opacity: 0.4; cursor: not-allowed; background: transparent; color: var(--ink); }
+/* a chip can carry a hue swatch: <button><i style="background: var(--hue-blue)"></i>dub techno</button> */
+.ui-chips button i { width: 8px; height: 8px; border: 1px solid var(--ink); display: inline-block; margin-right: var(--unit); vertical-align: -1px; }
+.ui-chips button[aria-checked="true"] i { border-color: var(--inverse); }
+
+/* --- select: ≥ 4 options or long labels --- */
+.ui-select {
+  appearance: none; -webkit-appearance: none;
+  background: transparent; border: 1px solid var(--ink); border-radius: 0;
+  height: var(--line); padding: 0 calc(var(--unit) * 5) 0 calc(var(--unit) * 1.5);
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(-45deg, transparent 50%, var(--ink) 50%);
+  background-size: 4px 4px; background-repeat: no-repeat;
+  background-position: calc(100% - 10px) 7px, calc(100% - 6px) 7px;
+  cursor: pointer;
+}
+.ui-select:hover { border-color: var(--now); }
+.ui-select:disabled { opacity: 0.4; cursor: not-allowed; }
+.ui-select option, .ui-select optgroup { background: var(--pad); color: var(--ink); }
+
+/* --- toggle: anything that is on or off. <button class="ui-toggle" role="switch" aria-checked="false"> --- */
+.ui-toggle {
+  position: relative; width: 30px; height: var(--line); background: transparent;
+  border: 1px solid var(--ink); cursor: pointer; padding: 0;
+}
+.ui-toggle::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 10px; height: 10px; background: var(--unlit);
+}
+.ui-toggle[aria-checked="true"] { background: var(--ink); }
+.ui-toggle[aria-checked="true"]::after { left: 15px; background: var(--inverse); }
+.ui-toggle:hover { border-color: var(--now); }
+.ui-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* --- slider: continuous ranges. Wrap in .ui-slider with an optional .ticks layer --- */
+.ui-slider { position: relative; display: inline-block; width: 112px; height: var(--line); }
+.ui-slider input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: var(--line); background: transparent; cursor: pointer; display: block; }
+.ui-slider input[type="range"]::-webkit-slider-runnable-track { height: 1px; background: var(--ink); }
+.ui-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 8px; height: 14px; background: var(--ink); margin-top: -7px; border: 0; }
+.ui-slider input[type="range"]:hover::-webkit-slider-thumb { background: var(--now); }
+.ui-slider input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
+.ui-slider .ticks { position: absolute; inset: 0; pointer-events: none; }
+.ui-slider .ticks span { position: absolute; top: 5px; width: 1px; height: 8px; background: var(--unlit); }
+/* clickable standard values beside a slider */
+.ui-presets { display: inline-flex; gap: 2px; }
+.ui-presets button { background: none; border: 0; color: var(--label); padding: 0 2px; cursor: pointer; }
+.ui-presets button:hover { color: var(--now); }
+.ui-presets button[aria-checked="true"] { color: var(--ink); text-decoration: underline; }
+
+/* --- step grid: 16 pads per bar. Classes: (rest) .x hit .X accent .hold tie .now playhead --- */
+.ui-steps { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; }
+.ui-steps .beat { color: var(--label); padding-left: 1px; }
+.ui-steps button { height: 18px; border: 1px solid var(--ink); background: transparent; cursor: pointer; }
+.ui-steps button:nth-of-type(4n+1) { border-left-width: 2px; }
+.ui-steps button.x { background: var(--unlit); }
+.ui-steps button.X { background: var(--ink); }
+.ui-steps button.hold { background: repeating-linear-gradient(90deg, var(--unlit) 0 1px, transparent 1px 3px); }
+.ui-steps button:hover { border-color: var(--now); }
+.ui-steps button.now { outline: 1px solid var(--now); outline-offset: 1px; }
+
+/* --- pads: lit, Launchpad-coloured tiles (clips, chords, scenes). Set --hue on the pad or a parent --- */
+.ui-pads { display: grid; gap: calc(var(--unit) * 2); grid-auto-rows: minmax(0, 1fr); }
+.ui-pad {
+  position: relative; background: var(--hue, var(--hue-blue)); color: var(--pad-text); border: 1px solid var(--pad-edge);
+  display: flex; flex-direction: column; justify-content: space-between; padding: var(--unit) calc(var(--unit) * 2);
+  cursor: pointer; min-width: 0; min-height: 0; overflow: hidden; text-align: left;
+}
+.ui-pad:hover { outline: 1px solid var(--ink); }
+.ui-pad.playing { background: var(--now); }
+.ui-pad .big { font-size: var(--large); line-height: calc(var(--line) * 2); white-space: nowrap; overflow: hidden; }
+.ui-pad .dim { opacity: 0.6; }
+.ui-pad .corner {
+  position: absolute; top: var(--unit); right: var(--unit); background: transparent; border: 1px solid transparent;
+  color: var(--pad-text); padding: 0 var(--unit); cursor: pointer;
+}
+.ui-pad .corner:hover { border-color: var(--pad-text); }
+
+/* --- key hints that are also buttons (LPX Grid footer). Primary = the confirming action --- */
+.ui-footer { display: flex; align-items: center; gap: calc(var(--unit) * 4); }
+.ui-footer .spacer { flex: 1; }
+.ui-key { background: none; border: 0; cursor: pointer; display: inline-flex; gap: calc(var(--unit) * 1.5); align-items: center; padding: 0; }
+.ui-key kbd { font: inherit; background: var(--ink); color: var(--inverse); padding: 0 var(--unit); }
+.ui-key:hover kbd { background: var(--now); color: #FFFFFF; }
+.ui-key.primary { background: var(--ink); color: var(--inverse); border: 1px solid var(--ink); padding: var(--unit) calc(var(--unit) * 3); }
+.ui-key.primary kbd { background: var(--inverse); color: var(--ink); }
+.ui-key.primary:hover { background: var(--now); border-color: var(--now); color: #FFFFFF; }
+.ui-key.primary:hover kbd { background: #FFFFFF; color: #000000; }
+.ui-key:disabled { opacity: 0.4; cursor: not-allowed; }

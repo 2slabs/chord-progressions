@@ -7,236 +7,83 @@
       // Replaced by the extension with Live's current key, tempo and saved settings.
       window.__INIT__ = null;
     </script>
+    <!-- The 2sl-ui design system (synced into ./2sl by 2sl-ui/scripts/sync.sh; edit it there). -->
+    <link rel="stylesheet" href="./2sl/tokens.css" />
+    <link rel="stylesheet" href="./2sl/components.css" />
     <style>
-      /* The 2sl look (https://2sl.to): LPX Grid colours, Cozette pixel type,
-         1px ink outlines, inversion for the current choice. */
-      @font-face {
-        font-family: "Cozette";
-        src: url("./fonts/CozetteVector.woff2") format("woff2");
-        font-display: block;
-      }
-      :root {
-        --pad: #D5D8DB;
-        --ink: #000000;
-        --unlit: #737980;
-        --inverse: #FFFFFF;
-        --now: #2D5BFF;
-        --mint: #72DEC2;
-        /* Launchpad row hues at quarter brightness: dark enough for white text */
-        --hue-red: #3E0000;
-        --hue-orange: #3E1400;
-        --hue-green: #003E00;
-        --hue-blue: #00003E;
-        --hue-ink: #000000;
-        --hue: var(--hue-blue); /* the current style's pad colour, set from JS */
-        --pad-text: #FFFFFF; /* text on lit pads, in both themes */
-        --pad-edge: #000000;
-
-        /* Cozette is pixel-aligned only at multiples of 13px */
-        --font: "Cozette", Monaco, monospace;
-        --small: 13px;
-        --large: 26px;
-        --line: 18px;
-        --unit: 4px;
-      }
-      /* Dark: the same tokens flipped to sit next to Live's dark theme. Ink becomes
-         the light grey, the pad becomes Live's panel grey, and the Launchpad hues
-         go up to roughly half brightness so lit pads still read against it. */
-      :root[data-theme="dark"] {
-        --pad: #262626;
-        --ink: #D5D8DB;
-        --unlit: #7E848B;
-        --inverse: #262626;
-        --now: #4A72FF;
-        --hue-red: #6A0000;
-        --hue-orange: #6A2300;
-        --hue-green: #005A00;
-        --hue-blue: #00006A;
-        --hue-ink: #0A0A0A;
-        --pad-edge: #000000;
-      }
-      :root[data-theme="dark"] ::selection { color: #000000; }
-
-      * { box-sizing: border-box; margin: 0; padding: 0; }
+      /* Layout for this dialog only. */
       html, body { height: 100%; }
       body {
-        background: var(--pad);
-        color: var(--ink);
-        font: var(--small)/var(--line) var(--font);
-        -webkit-font-smoothing: none;
-        font-kerning: none;
-        font-variant-ligatures: none;
-        font-synthesis: none;
-        display: flex;
-        flex-direction: column;
-        gap: calc(var(--unit) * 3);
-        padding: calc(var(--unit) * 4);
-        user-select: none;
-        -webkit-user-select: none;
-        cursor: default;
+        display: flex; flex-direction: column; gap: calc(var(--unit) * 3);
+        padding: calc(var(--unit) * 4); user-select: none; -webkit-user-select: none;
       }
-      ::selection { background: var(--mint); color: var(--ink); }
-      :focus-visible { outline: 1px solid var(--now); outline-offset: 2px; }
-      button, select, input { font: inherit; color: inherit; }
-
-      /* --- header: wordmark-style title, status line --- */
-      header { display: flex; align-items: center; gap: calc(var(--unit) * 3); }
-      .wordmark { background: var(--ink); color: var(--inverse); padding: 0 calc(var(--unit) * 2); }
-      .status { color: var(--unlit); display: flex; gap: calc(var(--unit) * 4); }
-      .status b { color: var(--ink); font-weight: normal; }
-      header .spacer { flex: 1; }
-
-      /* --- chips: a row of outlined choices, the current one inverted --- */
-      .chips { display: flex; flex-wrap: wrap; gap: var(--unit); }
-      .chips button {
-        background: transparent; border: 1px solid var(--ink); padding: 0 calc(var(--unit) * 1.5);
-        line-height: calc(var(--line) - 2px); cursor: pointer; white-space: nowrap;
-      }
-      .chips button:hover { background: var(--ink); color: var(--inverse); }
-      .chips button[aria-pressed="true"] { background: var(--ink); color: var(--inverse); }
-      .chips button[aria-pressed="true"]:hover { background: var(--now); border-color: var(--now); }
-
-      /* style chips carry their pad colour */
-      #style button { padding-left: calc(var(--unit) * 1.5); display: inline-flex; align-items: center; gap: var(--unit); }
-      #style button i { width: 8px; height: 8px; border: 1px solid var(--ink); display: inline-block; }
-      #style button[aria-pressed="true"] i { border-color: var(--inverse); }
-      .blurb { color: var(--unlit); min-height: var(--line); }
-
-      /* --- parameters: label column in unlit, values as chips --- */
-      .params { display: grid; grid-template-columns: 8ch auto 8ch auto; gap: calc(var(--unit) * 2) calc(var(--unit) * 3); align-items: center; justify-content: start; }
-      .params > .label { color: var(--unlit); }
+      .style-row { display: flex; align-items: center; gap: calc(var(--unit) * 2); }
+      .swatch { width: 12px; height: 12px; border: 1px solid var(--ink); background: var(--hue); }
+      #style { min-width: 180px; }
       #rhythm { min-width: 200px; }
-      .rule { border-top: 1px solid var(--ink); }
-
-      select {
-        appearance: none; -webkit-appearance: none;
-        background: transparent; border: 1px solid var(--ink); border-radius: 0;
-        height: var(--line); padding: 0 calc(var(--unit) * 5) 0 calc(var(--unit) * 1.5);
-        background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(-45deg, transparent 50%, var(--ink) 50%);
-        background-size: 4px 4px; background-repeat: no-repeat;
-        background-position: calc(100% - 10px) 7px, calc(100% - 6px) 7px;
-        cursor: pointer;
-      }
-      select:hover { border-color: var(--now); }
-
-      /* --- swing slider: 1px track, square thumb, clickable standard values --- */
       .swing { display: inline-flex; align-items: center; gap: calc(var(--unit) * 2); }
-      .slider { position: relative; width: 112px; height: var(--line); }
-      input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: var(--line); background: transparent; cursor: pointer; display: block; }
-      input[type="range"]::-webkit-slider-runnable-track { height: 1px; background: var(--ink); }
-      input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 8px; height: 14px; background: var(--ink); margin-top: -7px; border: 0; }
-      input[type="range"]:hover::-webkit-slider-thumb { background: var(--now); }
-      .ticks { position: absolute; inset: 0; pointer-events: none; }
-      .ticks span { position: absolute; top: 5px; width: 1px; height: 8px; background: var(--unlit); }
       .swing-value { min-width: 8ch; }
-      .presets { display: inline-flex; gap: 2px; }
-      .presets button { background: none; border: 0; color: var(--unlit); padding: 0 2px; cursor: pointer; }
-      .presets button:hover { color: var(--now); }
-      .presets button[aria-pressed="true"] { color: var(--ink); text-decoration: underline; }
-
-      /* --- step grid: one bar of the rhythm as 16 pads --- */
-      .steps { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; }
-      .steps .beat { color: var(--unlit); padding-left: 1px; }
-      .steps button { height: 18px; border: 1px solid var(--ink); background: transparent; cursor: pointer; }
-      .steps button:nth-of-type(4n+1) { border-left-width: 2px; }
-      .steps button.x { background: var(--unlit); }
-      .steps button.X { background: var(--ink); }
-      .steps button.hold { background: repeating-linear-gradient(90deg, var(--unlit) 0 1px, transparent 1px 3px); }
-      .steps button:hover { border-color: var(--now); }
-      .steps button.now { outline: 1px solid var(--now); outline-offset: 1px; }
-
-      /* --- progression: lit pads in the style's colour --- */
-      #cards { display: grid; gap: calc(var(--unit) * 2); flex: 1; min-height: 0; grid-auto-rows: minmax(0, 1fr); }
-      .pad {
-        position: relative; background: var(--hue); color: var(--pad-text); border: 1px solid var(--pad-edge);
-        display: flex; flex-direction: column; justify-content: space-between; padding: var(--unit) calc(var(--unit) * 2);
-        cursor: pointer; min-width: 0; min-height: 0; overflow: hidden; text-align: left;
-      }
-      .pad:hover { outline: 1px solid var(--ink); }
-      .pad.playing { background: var(--now); }
-      .pad .top { display: flex; gap: calc(var(--unit) * 2); padding-right: calc(var(--unit) * 5); }
-      .pad .index { opacity: 0.6; }
-      .pad .numeral { font-size: var(--large); line-height: calc(var(--line) * 2); white-space: nowrap; overflow: hidden; }
-      .pad .name { white-space: nowrap; }
-      .pad .reroll {
-        position: absolute; top: var(--unit); right: var(--unit); background: transparent; border: 1px solid transparent;
-        color: var(--pad-text); padding: 0 var(--unit); cursor: pointer;
-      }
-      .pad .reroll:hover { border-color: var(--pad-text); }
-
-      /* --- footer: key hints that are also the buttons, as in LPX Grid --- */
-      footer { display: flex; align-items: center; gap: calc(var(--unit) * 4); }
-      footer .spacer { flex: 1; }
-      .key { background: none; border: 0; cursor: pointer; display: inline-flex; gap: calc(var(--unit) * 1.5); align-items: center; padding: 0; }
-      .key kbd { font: inherit; background: var(--ink); color: var(--inverse); padding: 0 var(--unit); }
-      .key:hover kbd { background: var(--now); }
-      .key.primary { background: var(--ink); color: var(--inverse); border: 1px solid var(--ink); padding: var(--unit) calc(var(--unit) * 3); }
-      .key.primary kbd { background: var(--inverse); color: var(--ink); }
-      .key.primary:hover { background: var(--now); border-color: var(--now); }
-      .key.primary:hover kbd { background: var(--inverse); }
+      .inline { display: inline-flex; align-items: center; gap: calc(var(--unit) * 2); }
+      #cards { flex: 1; min-height: 0; }
     </style>
   </head>
   <body>
-    <header>
-      <span class="wordmark">chord progressions</span>
-      <span class="status" id="status"></span>
+    <header class="ui-header">
+      <span class="ui-wordmark">chord progressions</span>
+      <span class="ui-status" id="status"></span>
       <span class="spacer"></span>
-      <span class="status" id="tempo"></span>
-      <span class="chips" id="theme" title="dialog theme"></span>
+      <span class="ui-status" id="tempo"></span>
+      <span id="theme" title="dialog theme"></span>
     </header>
 
-    <div>
-      <div class="chips" id="style"></div>
+    <div class="style-row">
+      <span class="swatch" aria-hidden="true"></span>
+      <select id="style" aria-label="style"></select>
+      <span class="ui-hint" id="blurb"></span>
     </div>
-    <div class="blurb" id="blurb"></div>
 
-    <div class="params">
+    <div class="ui-params">
       <span class="label">key</span>
-      <span class="chips"><select id="root"></select> <select id="scale"></select></span>
+      <span class="inline"><select id="root" aria-label="root"></select><select id="scale" aria-label="scale"></select></span>
       <span class="label">chords</span>
-      <span class="chips" id="count"></span>
+      <span class="inline"><select id="count" aria-label="number of chords"></select><span id="length"></span></span>
 
       <span class="label">chord</span>
-      <span class="chips" id="chord"></span>
-      <span class="label">each</span>
-      <span class="chips" id="length"></span>
+      <select id="chord" aria-label="chord type"></select>
+      <span class="label">voicing</span>
+      <span id="voicing"></span>
 
       <span class="label">movement</span>
-      <span class="chips" id="movement" title="diatonic builds each chord from the scale. parallel moves one shape to each new root: the dub / detroit stab sound."></span>
-      <span class="label">voicing</span>
-      <span class="chips" id="voicing"></span>
-
+      <span id="movement" title="diatonic builds each chord from the scale. parallel moves one shape to each new root: the dub / detroit stab sound."></span>
       <span class="label">register</span>
-      <span class="chips" id="register"></span>
-      <span class="label">bass</span>
-      <span class="chips" id="bass"></span>
+      <span class="inline"><span id="register"></span><span class="ui-label">bass</span><button id="bass" aria-label="bass note"></button></span>
     </div>
 
-    <div class="rule"></div>
+    <div class="ui-rule"></div>
 
-    <div class="params">
+    <div class="ui-params">
       <span class="label">rhythm</span>
-      <select id="rhythm"></select>
+      <select id="rhythm" aria-label="rhythm"></select>
       <span class="label">swing</span>
       <span class="swing">
-        <span class="slider"><span class="ticks" id="swing-ticks"></span><input type="range" id="swing" min="50" max="75" step="1" /></span>
+        <span id="swing"><input aria-label="swing" /></span>
         <span class="swing-value" id="swing-value"></span>
-        <span class="presets" id="swing-presets"></span>
+        <span id="swing-presets"></span>
       </span>
 
       <span class="label" title="chord changes land a 16th early: the house anticipation">push</span>
-      <span class="chips" id="push"></span>
+      <span><button id="push" aria-label="push chord changes a 16th early"></button></span>
     </div>
-    <div class="steps" id="steps" title="click a step: rest → hit → accent"></div>
+    <div class="ui-steps" id="steps" title="click a step: rest → hit → accent"></div>
 
-    <div id="cards"></div>
+    <div class="ui-pads" id="cards"></div>
 
-    <footer>
-      <button class="key" id="generate"><kbd>g</kbd>generate</button>
-      <button class="key" id="play"><kbd>space</kbd><span>preview</span></button>
+    <footer class="ui-footer">
+      <button class="ui-key" id="generate"><kbd>g</kbd>generate</button>
+      <button class="ui-key" id="play"><kbd>space</kbd><span>preview</span></button>
       <span class="spacer"></span>
-      <button class="key" id="cancel"><kbd>esc</kbd>cancel</button>
-      <button class="key primary" id="insert"><kbd>ret</kbd>insert clip</button>
+      <button class="ui-key" id="cancel"><kbd>esc</kbd>cancel</button>
+      <button class="ui-key primary" id="insert"><kbd>ret</kbd>insert clip</button>
     </footer>
     <script type="module" src="./app.ts"></script>
   </body>

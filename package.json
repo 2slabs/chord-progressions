@@ -1,6 +1,6 @@
 {
   "name": "chord-progressions",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "main": "dist/extension.js",
   "engines": {
     "node": ">=24.14.1"
@@ -25,5 +25,7 @@
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",
     "vite": "^6.0.0"
-  }
+  },
+  "private": true,
+  "description": "Chord progression generator for Ableton Live, tuned for techno, dub techno and house."
 }
