@@ -29,12 +29,18 @@ export function activate(activation: ActivationContext) {
     run(() => fromArrangement(context, arg as ArrangementSelection)),
   );
 
-  context.ui.registerContextMenuAction("ClipSlot", "Generate Chord Progression…", "chord-progressions.clipSlot");
-  context.ui.registerContextMenuAction(
-    "MidiTrack.ArrangementSelection",
-    "Generate Chord Progression…",
-    "chord-progressions.arrangement",
-  );
+  const menus = [
+    ["ClipSlot", "chord-progressions.clipSlot"],
+    ["MidiTrack.ArrangementSelection", "chord-progressions.arrangement"],
+  ] as const;
+  for (const [scope, command] of menus) {
+    context.ui
+      .registerContextMenuAction(scope, "Generate Chord Progression…", command)
+      .then(
+        () => console.log(`chord-progressions: menu registered for ${scope}`),
+        (err) => console.error(`chord-progressions: couldn't register menu for ${scope}:`, err),
+      );
+  }
 }
 
 function run(task: () => Promise<void>) {
