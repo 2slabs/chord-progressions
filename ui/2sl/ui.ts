@@ -3,7 +3,7 @@
 
 export type Theme = "dark" | "light";
 
-/** Set the theme on <html>. Dark sits next to Live; light is the 2sl.to look. */
+/** Set the theme on <html>. Dark sits next to Live; light is the default (and the website's). */
 export function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;
 }

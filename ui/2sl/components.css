@@ -1,10 +1,17 @@
 /* 2sl-ui components. Requires tokens.css. Usage rules (including Ableton's
-   Extensions design guide, which the SDK licence requires us to follow) are in README.md. */
+   Extensions design guide, which the SDK licence requires us to follow) are in README.md.
+   States: current = inverted, now = --now, marked (selected, not current) = .ui-marked,
+   disabled = --unlit text and lines with no hover (never opacity: it must match pixel canvases). */
+
+/* --- marked: selected but not current (part of a multi-selection, the remembered choice in an
+   unfocused group). A 1px ink frame 1px outside the thing; the playhead and focus use the same
+   frame in --now and win over it. --- */
+.ui-marked:not(:focus-visible) { outline: 1px solid var(--ink); outline-offset: 1px; }
 
 /* --- header: wordmark-style title, status text, optional right side --- */
 .ui-header { display: flex; align-items: center; gap: calc(var(--unit) * 3); }
 .ui-header .spacer { flex: 1; }
-.ui-wordmark { background: var(--ink); color: var(--inverse); padding: 0 calc(var(--unit) * 2); }
+.ui-wordmark { background: var(--ink); color: var(--inverse); padding: 0 calc(var(--unit) * 2); white-space: nowrap; flex: none; }
 .ui-status { color: var(--label); display: flex; gap: calc(var(--unit) * 4); }
 .ui-status b { color: var(--ink); font-weight: normal; }
 .ui-hint { color: var(--label); }
@@ -25,8 +32,9 @@
 }
 .ui-chips button:hover { background: var(--ink); color: var(--inverse); }
 .ui-chips button[aria-checked="true"] { background: var(--ink); color: var(--inverse); }
-.ui-chips button[aria-checked="true"]:hover { background: var(--now); border-color: var(--now); color: #FFFFFF; }
-.ui-chips button:disabled { opacity: 0.4; cursor: not-allowed; background: transparent; color: var(--ink); }
+.ui-chips button[aria-checked="true"]:hover { background: var(--now); border-color: var(--now); color: var(--now-text); }
+.ui-chips button:disabled, .ui-chips button[aria-checked="true"]:disabled { cursor: not-allowed; background: transparent; color: var(--unlit); border-color: var(--unlit); }
+.ui-chips button[aria-checked="true"]:disabled { background: var(--unlit); color: var(--pad); }
 /* a chip can carry a hue swatch: <button><i style="background: var(--hue-blue)"></i>dub techno</button> */
 .ui-chips button i { width: 8px; height: 8px; border: 1px solid var(--ink); display: inline-block; margin-right: var(--unit); vertical-align: -1px; }
 .ui-chips button[aria-checked="true"] i { border-color: var(--inverse); }
@@ -36,13 +44,14 @@
   appearance: none; -webkit-appearance: none;
   background: transparent; border: 1px solid var(--ink); border-radius: 0;
   height: var(--line); padding: 0 calc(var(--unit) * 5) 0 calc(var(--unit) * 1.5);
-  background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(-45deg, transparent 50%, var(--ink) 50%);
+  --ui-select-arrow: var(--ink);
+  background-image: linear-gradient(45deg, transparent 50%, var(--ui-select-arrow) 50%), linear-gradient(-45deg, transparent 50%, var(--ui-select-arrow) 50%);
   background-size: 4px 4px; background-repeat: no-repeat;
   background-position: calc(100% - 10px) 7px, calc(100% - 6px) 7px;
   cursor: pointer;
 }
 .ui-select:hover { border-color: var(--now); }
-.ui-select:disabled { opacity: 0.4; cursor: not-allowed; }
+.ui-select:disabled { --ui-select-arrow: var(--unlit); color: var(--unlit); border-color: var(--unlit); cursor: not-allowed; }
 .ui-select option, .ui-select optgroup { background: var(--pad); color: var(--ink); }
 
 /* --- toggle: anything that is on or off. <button class="ui-toggle" role="switch" aria-checked="false"> --- */
@@ -56,7 +65,9 @@
 .ui-toggle[aria-checked="true"] { background: var(--ink); }
 .ui-toggle[aria-checked="true"]::after { left: 15px; background: var(--inverse); }
 .ui-toggle:hover { border-color: var(--now); }
-.ui-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+.ui-toggle:disabled { border-color: var(--unlit); cursor: not-allowed; }
+.ui-toggle[aria-checked="true"]:disabled { background: var(--unlit); }
+.ui-toggle[aria-checked="true"]:disabled::after { background: var(--pad); }
 
 /* --- slider: continuous ranges. Wrap in .ui-slider with an optional .ticks layer --- */
 .ui-slider { position: relative; display: inline-block; width: 112px; height: var(--line); }
@@ -64,7 +75,9 @@
 .ui-slider input[type="range"]::-webkit-slider-runnable-track { height: 1px; background: var(--ink); }
 .ui-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 8px; height: 14px; background: var(--ink); margin-top: -7px; border: 0; }
 .ui-slider input[type="range"]:hover::-webkit-slider-thumb { background: var(--now); }
-.ui-slider input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
+.ui-slider input[type="range"]:disabled { cursor: not-allowed; }
+.ui-slider input[type="range"]:disabled::-webkit-slider-runnable-track { background: var(--unlit); }
+.ui-slider input[type="range"]:disabled::-webkit-slider-thumb { background: var(--unlit); }
 .ui-slider .ticks { position: absolute; inset: 0; pointer-events: none; }
 .ui-slider .ticks span { position: absolute; top: 5px; width: 1px; height: 8px; background: var(--unlit); }
 /* clickable standard values beside a slider */
@@ -92,7 +105,13 @@
   cursor: pointer; min-width: 0; min-height: 0; overflow: hidden; text-align: left;
 }
 .ui-pad:hover { outline: 1px solid var(--ink); }
-.ui-pad.playing { background: var(--now); }
+.ui-pad.playing { background: var(--now); color: var(--now-text); }
+/* lit: the pad that is on right now on the hardware. Set --hue-lit beside --hue; blue and purple
+   keep --pad-text (add .lit-light-text), every other lit hue takes --lit-pad-text. */
+.ui-pad.lit { background: var(--hue-lit); color: var(--lit-pad-text); }
+.ui-pad.lit.lit-light-text { color: var(--pad-text); }
+.ui-pad.lit .corner { color: inherit; }
+.ui-pad.lit .corner:hover { border-color: currentColor; }
 .ui-pad .big { font-size: var(--large); line-height: calc(var(--line) * 2); white-space: nowrap; overflow: hidden; }
 .ui-pad .dim { opacity: 0.6; }
 .ui-pad .corner {
@@ -104,11 +123,37 @@
 /* --- key hints that are also buttons (LPX Grid footer). Primary = the confirming action --- */
 .ui-footer { display: flex; align-items: center; gap: calc(var(--unit) * 4); }
 .ui-footer .spacer { flex: 1; }
-.ui-key { background: none; border: 0; cursor: pointer; display: inline-flex; gap: calc(var(--unit) * 1.5); align-items: center; padding: 0; }
+.ui-key { background: none; border: 0; cursor: pointer; white-space: nowrap; display: inline-flex; gap: calc(var(--unit) * 1.5); align-items: center; padding: 0; }
 .ui-key kbd { font: inherit; background: var(--ink); color: var(--inverse); padding: 0 var(--unit); }
-.ui-key:hover kbd { background: var(--now); color: #FFFFFF; }
+.ui-key:hover kbd { background: var(--now); color: var(--now-text); }
 .ui-key.primary { background: var(--ink); color: var(--inverse); border: 1px solid var(--ink); padding: var(--unit) calc(var(--unit) * 3); }
 .ui-key.primary kbd { background: var(--inverse); color: var(--ink); }
-.ui-key.primary:hover { background: var(--now); border-color: var(--now); color: #FFFFFF; }
-.ui-key.primary:hover kbd { background: #FFFFFF; color: #000000; }
-.ui-key:disabled { opacity: 0.4; cursor: not-allowed; }
+.ui-key.primary:hover { background: var(--now); border-color: var(--now); color: var(--now-text); }
+.ui-key.primary:hover kbd { background: var(--now-text); color: var(--now); }
+.ui-key:disabled, .ui-key.primary:disabled { color: var(--unlit); cursor: not-allowed; }
+.ui-key:disabled kbd, .ui-key.primary:disabled kbd { background: var(--unlit); color: var(--pad); }
+.ui-key.primary:disabled { background: transparent; border-color: var(--unlit); }
+
+/* --- text / number input: <input class="ui-input"> --- */
+.ui-input {
+  appearance: none; -webkit-appearance: none; background: transparent; border: 1px solid var(--ink); border-radius: 0;
+  height: var(--line); padding: 0 calc(var(--unit) * 1.5); width: 10ch; color: var(--ink); font: inherit;
+}
+.ui-input:hover { border-color: var(--now); }
+.ui-input:focus { outline: 1px solid var(--now); outline-offset: 1px; }
+.ui-input::-webkit-inner-spin-button, .ui-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.ui-input:disabled { color: var(--unlit); border-color: var(--unlit); cursor: not-allowed; }
+
+/* --- big readout: the one number that matters (39px is Cozette's third pixel size) --- */
+.ui-readout { font-size: var(--huge); line-height: calc(var(--line) * 3); }
+
+/* --- table: plain rows, ink rule under the header --- */
+.ui-table { border-collapse: collapse; width: 100%; }
+.ui-table th { color: var(--label); font-weight: normal; text-align: left; border-bottom: 1px solid var(--ink); padding: 0 calc(var(--unit) * 2) 0 0; }
+.ui-table td { padding: 0 calc(var(--unit) * 2) 0 0; white-space: nowrap; }
+.ui-table td.num, .ui-table th.num { text-align: right; }
+.ui-table tr.dim td { color: var(--label); }
+
+/* --- notice: a one-line warning or tip --- */
+.ui-notice { border: 1px solid var(--ink); padding: 0 calc(var(--unit) * 2); }
+.ui-notice.warn { border-color: var(--hue-orange); background: var(--hue-orange); color: var(--pad-text); }

@@ -1,6 +1,8 @@
-/* 2sl-ui tokens: the 2sl look (https://2sl.to, "LPX Grid") for Ableton tools.
-   Light is the site; dark is the same system flipped to sit next to Live.
-   Set <html data-theme="dark"> or "light". See README.md for the rules. */
+/* 2sl-ui tokens: the org's design system, the one source of truth for 2sl's colours, type and space.
+   Consumers copy or generate from this file (2sl.to, LPX Grid, the Live Extensions, Max for Live
+   via max/2sl-colors.json); they never define colours of their own. Light theme is the default;
+   dark is the same system flipped to sit next to Live. Set <html data-theme="dark"> or "light".
+   Every colour is a literal #RRGGBB (generators parse them). See README.md for the rules. */
 
 @font-face {
   font-family: "Cozette";
@@ -9,24 +11,45 @@
 }
 
 :root {
-  /* surfaces and ink (2sl.to) */
+  /* surfaces and ink */
   --pad: #D5D8DB;      /* background */
   --ink: #000000;      /* text, outlines, selected fill */
   --inverse: #FFFFFF;  /* text on ink */
-  --unlit: #737980;    /* decoration only: fills, ticks, swatches, rests. Not for text. */
+  --unlit: #737980;    /* decoration and disabled controls only. Not for readable text. */
   --label: #595E65;    /* secondary text (labels, hints): WCAG AA on --pad */
   --now: #2D5BFF;      /* hover, focus, playing, "this is happening" */
-  --mint: #72DEC2;     /* text selection */
+  --now-text: #FFFFFF; /* text on a --now fill */
+  --mint: #72DEC2;     /* text selection background */
+  --selection-text: #000000; /* text on --mint */
 
-  /* Launchpad row hues for lit pads and category tags; always with --pad-text */
+  /* Launchpad row hues (LPX_Script palette.py, snapshot rows top to bottom). The stored hue is
+     the Launchpad's quarter brightness; dark raises it (README "Launchpad hues"). For pads and
+     category tags; always with --pad-text. */
   --hue-red: #3E0000;
   --hue-orange: #3E1400;
+  --hue-yellow: #3E3600;
   --hue-green: #003E00;
+  --hue-cyan: #003E3E;
   --hue-blue: #00003E;
+  --hue-purple: #22003E;
+  --hue-pink: #3E0022;
   --hue-ink: #000000;
   --hue-grey: #464B51;
-  --pad-text: #FFFFFF;
-  --pad-edge: #000000;
+  --pad-text: #FFFFFF;  /* text on a hue, and on the blue and purple lit hues */
+  --pad-edge: #000000;  /* the 1px outline around a pad */
+
+  /* lit: the Launchpad's full-brightness colours, the same in both themes (an LED is an LED).
+     For the pad that is lit right now (a matching snapshot, a pressed pad). Text on them is
+     --lit-pad-text, except blue and purple, which take --pad-text (README "Launchpad hues"). */
+  --hue-red-lit: #FF0000;
+  --hue-orange-lit: #FF5000;
+  --hue-yellow-lit: #FFDC00;
+  --hue-green-lit: #00FF00;
+  --hue-cyan-lit: #00FFFF;
+  --hue-blue-lit: #0000FF;
+  --hue-purple-lit: #8C00FF;
+  --hue-pink-lit: #FF008C;
+  --lit-pad-text: #000000; /* dark text on a bright, lit pad */
 
   /* type: Cozette is pixel-aligned only at multiples of 13px. Use 13 / 26 / 39, nothing else. */
   --font: "Cozette", Monaco, monospace;
@@ -37,21 +60,35 @@
 
   /* space: a 4px grid */
   --unit: 4px;
+
+  /* web pages: the space at the window edge and between page blocks, and the content width.
+     Dialogs and devices don't use these; they pad with --unit multiples. */
+  --gutter: calc(var(--unit) * 6);
+  --page-width: 1200px;
 }
 
 :root[data-theme="dark"], [data-theme="dark"] {
   --pad: #262626;      /* Live's dark panel grey */
-  --ink: #D5D8DB;      /* the site's pad grey becomes the ink */
+  --ink: #D5D8DB;      /* the light pad grey becomes the ink */
   --inverse: #262626;
   --unlit: #7E848B;
   --label: #8E949B;
-  /* Hues up to ~half brightness so lit pads read against the dark pad */
+  /* Hues raised to the lit colour x 0x6A/0xFF (README "Launchpad hues") so pads read on the dark pad */
   --hue-red: #6A0000;
   --hue-orange: #6A2300;
+  --hue-yellow: #6A5B00;
   --hue-green: #005A00;
+  --hue-cyan: #006A6A;
   --hue-blue: #00006A;
+  --hue-purple: #3A006A;
+  --hue-pink: #6A003A;
   --hue-ink: #0A0A0A;
   --hue-grey: #4A4F55;
+}
+
+/* narrow web pages (phones, small windows): a smaller gutter */
+@media (max-width: 860px) {
+  :root { --gutter: calc(var(--unit) * 4); }
 }
 
 /* base: apply to any 2sl-ui page */
@@ -67,5 +104,6 @@ body {
   cursor: default;
 }
 button, select, input { font: inherit; color: inherit; }
-::selection { background: var(--mint); color: #000000; }
+input, textarea { caret-color: var(--ink); }
+::selection { background: var(--mint); color: var(--selection-text); }
 :focus-visible { outline: 1px solid var(--now); outline-offset: 2px; }
