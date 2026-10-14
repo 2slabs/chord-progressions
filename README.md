@@ -72,3 +72,7 @@ Don't use `--verbose` with the beta.1 CLI: it never detects the connection and q
 - UI: the 2sl-ui design system, after [2sl.to](https://2sl.to).
 - Font: [Cozette](https://github.com/slavfox/Cozette) by Slavfox, MIT (`ui/2sl/fonts/LICENSE-Cozette.txt`).
 - Ableton and Live are trademarks of Ableton AG. This project isn't affiliated with or endorsed by Ableton.
+
+## License
+
+MIT, see [LICENSE](LICENSE). That covers this repo's code. The Ableton Extensions SDK isn't included and is under Ableton's own licence. Fonts and other bundled assets keep their own licences (Cozette: MIT).

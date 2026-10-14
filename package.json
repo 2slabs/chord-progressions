@@ -27,5 +27,6 @@
     "vite": "^6.0.0"
   },
   "private": true,
-  "description": "Chord progression generator for Ableton Live, tuned for techno, dub techno and house."
+  "description": "Chord progression generator for Ableton Live, tuned for techno, dub techno and house.",
+  "license": "MIT"
 }
