@@ -28,7 +28,7 @@
         display: flex;
         flex-direction: column;
         padding: 14px 16px;
-        gap: 12px;
+        gap: 10px;
         user-select: none;
         -webkit-user-select: none;
       }
@@ -50,7 +50,10 @@
       }
       .seg button:first-child { border-left: 0; }
       .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+      label.style select { min-width: 150px; font-weight: 600; }
+      .divider { height: 1px; background: var(--border); margin: 0 -16px; }
       .hint { color: var(--muted); font-size: 11px; min-height: 14px; }
+      .hint b { color: var(--text); font-weight: 600; }
       #cards { display: grid; gap: 6px; flex: 1; min-height: 0; }
       .card {
         position: relative;
@@ -62,7 +65,7 @@
       }
       .card:hover { border-color: #555; }
       .card.playing { border-color: var(--playing); box-shadow: inset 0 0 0 1px var(--playing); }
-      .card .numeral { font-size: 20px; font-weight: 600; }
+      .card .numeral { font-size: 20px; font-weight: 600; white-space: nowrap; }
       .card .name { color: var(--muted); font-size: 12px; white-space: nowrap; }
       .card .reroll {
         position: absolute; top: 3px; right: 3px; width: 20px; height: 20px;
@@ -84,6 +87,7 @@
   </head>
   <body>
     <div class="row">
+      <label class="style">Style <select id="style"></select></label>
       <label>Root <select id="root"></select></label>
       <label>Scale <select id="scale"></select></label>
       <label>Chords <select id="count"></select></label>
@@ -91,15 +95,16 @@
         <option value="2">2 beats</option>
         <option value="4">1 bar</option>
         <option value="8">2 bars</option>
+        <option value="16">4 bars</option>
       </select></label>
-      <label>Rhythm <select id="rhythm"></select></label>
     </div>
     <div class="row">
-      <label>Type <span class="seg" id="sevenths">
-        <button data-v="none">Triads</button><button data-v="mixed">Mixed</button><button data-v="all">7ths</button>
+      <label>Chord <select id="chord"></select></label>
+      <label title="Diatonic builds each chord from the scale. Parallel moves one chord shape to each new root – the dub / Detroit stab sound.">Movement <span class="seg" id="movement">
+        <button data-v="diatonic">Diatonic</button><button data-v="parallel">Parallel</button>
       </span></label>
-      <label>Voicing <span class="seg" id="smooth">
-        <button data-v="true">Smooth</button><button data-v="false">Root</button>
+      <label>Voicing <span class="seg" id="voicing">
+        <button data-v="smooth" title="Inversions that move as little as possible">Smooth</button><button data-v="close" title="Root position, packed tight">Close</button><button data-v="spread" title="Open voicings">Spread</button>
       </span></label>
       <label>Register <span class="seg" id="register">
         <button data-v="48">Low</button><button data-v="60">Mid</button><button data-v="72">High</button>
@@ -108,6 +113,19 @@
         <button data-v="true">On</button><button data-v="false">Off</button>
       </span></label>
     </div>
+    <div class="row">
+      <label>Rhythm <select id="rhythm"></select></label>
+      <label title="Delays every second 16th">Swing <select id="swing">
+        <option value="50">Off</option>
+        <option value="54">54%</option>
+        <option value="58">58%</option>
+        <option value="62">62%</option>
+      </select></label>
+      <label title="Chord changes land a 16th early – the house anticipation">Push <span class="seg" id="push">
+        <button data-v="false">Off</button><button data-v="true">On</button>
+      </span></label>
+    </div>
+    <div class="divider"></div>
     <div class="hint" id="hint"></div>
     <div id="cards"></div>
     <div class="actions">
