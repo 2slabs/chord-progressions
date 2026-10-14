@@ -34,6 +34,8 @@ Requires **Ableton Live 12 Suite, 12.4.5 or later, with Extensions** (currently 
 
 The clip is MIDI only. Put an instrument on the track; for dub styles, add Echo.
 
+If the right-click item doesn't appear, turn off **Settings → Extensions → Developer Mode**: while it's on, Live waits for a development host and installed extensions' menus don't show.
+
 ## Develop
 
 You need Node.js ≥ 24.16 and the **Ableton Extensions SDK zip** from Ableton's beta programme. The SDK isn't in this repo because its licence doesn't allow redistributing it.
