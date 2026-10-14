@@ -7,6 +7,8 @@ export interface Settings {
   scale: string;
   count: number;
   beatsPerChord: number;
+  /** A RHYTHMS id. */
+  rhythm: string;
   sevenths: SeventhMode;
   smooth: boolean;
   register: number;
@@ -34,6 +36,7 @@ export const DEFAULT_SETTINGS: Settings = {
   scale: "Major",
   count: 4,
   beatsPerChord: 4,
+  rhythm: "sustain",
   sevenths: "none",
   smooth: true,
   register: 60,

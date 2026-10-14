@@ -254,15 +254,3 @@ export interface Note {
   duration: number;
   velocity: number;
 }
-
-/** Lay chords end to end, `beatsPerChord` each. */
-export function toNotes(voicings: number[][], beatsPerChord: number, bass: boolean): Note[] {
-  return voicings.flatMap((pitches, i) =>
-    pitches.map((pitch, j) => ({
-      pitch,
-      startTime: i * beatsPerChord,
-      duration: beatsPerChord,
-      velocity: bass && j === 0 ? 100 : 88,
-    })),
-  );
-}

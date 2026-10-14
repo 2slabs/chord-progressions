@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SCALES, buildChord, generate, reroll, voice, toNotes, type Rng } from "../src/theory.ts";
+import { SCALES, buildChord, generate, reroll, voice, type Rng } from "../src/theory.ts";
 
 const seeded = (seed: number): Rng => () => {
   seed = (seed * 1664525 + 1013904223) % 4294967296;
@@ -74,11 +74,4 @@ test("bass note is the chord root two octaves down", () => {
   const [v] = voice(0, chords, { center: 60, smooth: true, bass: true });
   assert.equal(v[0], 43);
   assert.equal(v[0] % 12, 7);
-});
-
-test("notes are laid out end to end", () => {
-  const notes = toNotes([[60, 64, 67], [57, 60, 64]], 4, false);
-  assert.equal(notes.length, 6);
-  assert.deepEqual(notes.map((n) => n.startTime), [0, 0, 0, 4, 4, 4]);
-  assert.ok(notes.every((n) => n.duration === 4));
 });
