@@ -5,8 +5,9 @@ import * as path from "node:path";
 const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
 const production = process.argv.includes("--production");
 
-// Dialogs are loaded from a data: URL, so they can't fetch scripts. Bundle each
-// <script type="module" src="..."> in an imported .html file and inline it.
+// Dialogs are loaded from a data: URL, so they can't fetch anything. Bundle each
+// <script type="module" src="..."> in an imported .html file and inline it, and
+// inline url("./...") assets.
 const inlineUiScripts: esbuild.Plugin = {
   name: "inline-ui-scripts",
   setup(build) {
@@ -28,6 +29,13 @@ const inlineUiScripts: esbuild.Plugin = {
         const js = out.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
         html = html.replace(tag, () => `<script>${js}</script>`);
       }
+      // Fonts and other assets referenced as url("./...") become data: URIs.
+      html = html.replace(/url\("(\.\/[^"]+)"\)/g, (_, rel: string) => {
+        const file = path.resolve(path.dirname(args.path), rel);
+        watchFiles.push(file);
+        const type = rel.endsWith(".woff2") ? "font/woff2" : "application/octet-stream";
+        return `url("data:${type};base64,${fs.readFileSync(file).toString("base64")}")`;
+      });
       return { contents: html, loader: "text", watchFiles };
     });
   },

@@ -23,7 +23,7 @@ const GAP = 0.03; // so repeated hits retrigger cleanly
  *   X accented hit   x hit   - hold the previous hit   . rest
  */
 export function steps(bar: string): Pattern {
-  if (bar.length !== 16) throw new Error(`pattern must be 16 steps: ${bar}`);
+  if (!/^[Xx.\-]{16}$/.test(bar)) throw new Error(`pattern must be 16 steps of X x - .: ${bar}`);
   const hits: { at: number; len: number; accent: boolean }[] = [];
   for (let i = 0; i < 16; i++) {
     const c = bar[i];
@@ -100,6 +100,38 @@ export const RHYTHMS: Rhythm[] = [
   { id: "alberti-8", label: "Alberti · 8ths", group: "Arpeggio", pattern: arp(0.5, alberti) },
 ];
 
+const CUSTOM = "custom:";
+
+/** A rhythm id for a user-drawn 16-step pattern. */
+export const customRhythm = (bar: string) => CUSTOM + bar;
+
+function patternFor(id: string): Pattern {
+  if (id.startsWith(CUSTOM)) {
+    try {
+      return steps(id.slice(CUSTOM.length));
+    } catch {
+      return RHYTHMS[0].pattern;
+    }
+  }
+  return (RHYTHMS.find((r) => r.id === id) ?? RHYTHMS[0]).pattern;
+}
+
+export const isRhythm = (id: string) => id.startsWith(CUSTOM) ? /^[Xx.\-]{16}$/.test(id.slice(CUSTOM.length)) : RHYTHMS.some((r) => r.id === id);
+
+/** One bar of any rhythm as 16 steps (X x - .), for display and as a starting point for editing. */
+export function barOf(id: string): string {
+  if (id.startsWith(CUSTOM)) return id.slice(CUSTOM.length);
+  const cells = Array<string>(16).fill(".");
+  for (const hit of patternFor(id)(4, 3)) {
+    const at = Math.round(hit.start / STEP);
+    if (at >= 16 || cells[at] !== ".") continue;
+    cells[at] = hit.velocity >= 92 ? "X" : "x";
+    const len = Math.max(1, Math.round((hit.duration + GAP) / STEP));
+    for (let k = 1; k < len && at + k < 16; k++) if (cells[at + k] === ".") cells[at + k] = "-";
+  }
+  return cells.join("");
+}
+
 export interface Groove {
   /** 16th swing as a percentage: 50 = straight, 58 = typical house. */
   swing?: number;
@@ -118,7 +150,7 @@ export function toNotes(
   rhythm = "sustain",
   groove: Groove = {},
 ): Note[] {
-  const pattern = (RHYTHMS.find((r) => r.id === rhythm) ?? RHYTHMS[0]).pattern;
+  const pattern = patternFor(rhythm);
   const swingDelay = ((groove.swing ?? 50) / 100 - 0.5) * 0.5;
   const chords = voicings.map((pitches, i) => {
     const t0 = i * beatsPerChord;

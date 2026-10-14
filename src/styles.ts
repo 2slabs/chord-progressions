@@ -7,6 +7,8 @@ export interface Style {
   label: string;
   /** One line shown in the dialog. */
   blurb: string;
+  /** Launchpad-style pad colour for the chord pads (a CSS colour token in the dialog). */
+  hue: "blue" | "green" | "orange" | "red" | "ink" | "unlit";
   scale: string;
   chord: ChordType;
   harmony: Harmony;
@@ -62,6 +64,7 @@ export const STYLES: Style[] = [
   {
     id: "dub-techno",
     label: "Dub Techno",
+    hue: "blue",
     blurb: "One minor 11 shape shifted to new roots, long sparse stabs – leave space for the delay.",
     scale: "Minor",
     chord: "eleventh",
@@ -79,6 +82,7 @@ export const STYLES: Style[] = [
   {
     id: "deep-house",
     label: "Deep House",
+    hue: "green",
     blurb: "Minor 9ths in Dorian, i–iv and i–♭VII–♭VI movement, swung stabs that land early.",
     scale: "Dorian",
     chord: "ninth",
@@ -95,6 +99,7 @@ export const STYLES: Style[] = [
   {
     id: "classic-house",
     label: "Classic House",
+    hue: "orange",
     blurb: "Piano-house 7ths with functional movement and the 3-3-4 piano riff.",
     scale: "Major",
     chord: "seventh",
@@ -111,6 +116,7 @@ export const STYLES: Style[] = [
   {
     id: "detroit",
     label: "Detroit Techno",
+    hue: "red",
     blurb: "Minor 9th pads sliding between i, ♭VI, ♭VII and ♭III, held or pulsing.",
     scale: "Minor",
     chord: "ninth",
@@ -127,6 +133,7 @@ export const STYLES: Style[] = [
   {
     id: "hypnotic",
     label: "Hypnotic Techno",
+    hue: "ink",
     blurb: "One or two quartal stabs in Phrygian, ♭II moves, syncopated 16ths.",
     scale: "Phrygian",
     chord: "quartal",
@@ -144,6 +151,7 @@ export const STYLES: Style[] = [
   {
     id: "functional",
     label: "Functional (pop)",
+    hue: "unlit",
     blurb: "Classic tonic–predominant–dominant movement with triads.",
     scale: "Major",
     chord: "triad",

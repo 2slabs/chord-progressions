@@ -105,3 +105,19 @@ test("strum staggers the notes upward", () => {
 test("unknown rhythm ids fall back to sustain", () => {
   assert.deepEqual(toNotes([C], 4, false, "nope"), toNotes([C], 4, false, "sustain"));
 });
+
+test("barOf shows any rhythm as 16 steps", async () => {
+  const { barOf } = await import("../src/rhythm.ts");
+  assert.equal(barOf("dub-dotted"), "X..x..x.........");
+  assert.equal(barOf("sustain"), "x---------------");
+  assert.equal(barOf("arp-up-8"), "X-x-X-x-X-x-X-x-");
+  assert.equal(barOf("custom:x.x.x.x.x.x.x.x."), "x.x.x.x.x.x.x.x.");
+});
+
+test("custom rhythms play their steps; bad ones fall back to sustain", async () => {
+  const { customRhythm, isRhythm } = await import("../src/rhythm.ts");
+  assert.deepEqual(starts(customRhythm("x...x...x...x...")), [0, 1, 2, 3]);
+  assert.ok(isRhythm(customRhythm("x...............")));
+  assert.ok(!isRhythm("custom:nope"));
+  assert.deepEqual(toNotes([C], 4, false, "custom:nope"), toNotes([C], 4, false, "sustain"));
+});

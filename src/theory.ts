@@ -245,7 +245,7 @@ export function generate(
   const stab = intervals.map((_, d) => stability(intervals, harmony, d));
   const tonicStart = harmony.movement === "parallel" ? 1 : harmony.tonicStart ?? 0.75;
   // Otherwise open on IV or vi (any stable degree for other scales).
-  const openers = intervals.map((_, d) => (d === 0 ? 0 : n === 7 ? (d === 3 || d === 5 ? 1 : 0) : stab[d]));
+  const openers = intervals.map((_, d) => (d === 0 ? 0 : n === 7 ? (d === 3 || d === 5 ? stab[d] : 0) : stab[d]));
   const degrees: number[] = [rng() < tonicStart ? 0 : pick(openers, rng)];
   for (let i = 1; i < count; i++) {
     const prev = degrees[i - 1];

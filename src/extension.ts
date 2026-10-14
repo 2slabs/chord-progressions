@@ -95,7 +95,7 @@ async function openDialog(context: Context): Promise<Result | null> {
   // Escape "<" so the JSON can't close the <script> it's embedded in.
   const json = JSON.stringify(init).replace(/</g, "\\u003c");
   const html = dialogHtml.replace("window.__INIT__ = null;", () => `window.__INIT__ = ${json};`);
-  const raw = await context.ui.showModalDialog(`data:text/html,${encodeURIComponent(html)}`, 720, 440);
+  const raw = await context.ui.showModalDialog(`data:text/html,${encodeURIComponent(html)}`, 720, 540);
   if (!raw) return null; // cancelled
   const result = JSON.parse(raw) as Result;
   saveSettings(context, result.settings);
