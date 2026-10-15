@@ -35,7 +35,7 @@ Following a clip:
 - **Chords:** triads, 7ths, 9ths, 11ths, sus2, sus4, quartal. Names come from the actual notes (`Am11`, `♭VIImaj9`). Clashing ♭9s are left out.
 - **Movement:** *diatonic* (chords built from the scale) or *parallel* (one shape moved to each root).
 - **Voicing:** smooth (minimal movement), close, spread, or rootless (the root left to the bass, the deep house stab), with low/mid/high register and an optional bass note.
-- **Rhythm:** 21 patterns (held, house, dub, techno, pulse, arpeggio), or draw your own on the 16-step grid. 16th swing from 50–75%, and push (chord changes land a 16th early).
+- **Rhythm:** 23 patterns (held, house, dub, techno, pulse, arpeggio), or draw your own on the 16-step grid. 16th swing from 50–75%, and push (chord changes land a 16th early).
 - **Preview:** hear the progression in the dialog at your Set's tempo (dub styles get a dotted-8th delay). Click a pad to hear one chord; ↻ re-rolls it.
 - Follows Live's Scale Mode key on first use, and remembers your settings.
 
