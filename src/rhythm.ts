@@ -78,6 +78,8 @@ export const RHYTHMS: Rhythm[] = [
   { id: "house-offbeat", label: "Offbeat organ", group: "House", pattern: steps("..X-..X-..X-..X-") },
   { id: "piano-house", label: "Piano 3-3-4", group: "House", pattern: steps("X-.x-.x-..x-.x-.") },
   { id: "house-stab", label: "Stab (1 · a · 3 · a)", group: "House", pattern: steps("X..x....X..x....") },
+  // Off the kick: no hits on beats 1–4, off-beat 16ths, some held (Attack, "Levelling Up Your Chord Stabs").
+  { id: "deep-stab", label: "Deep stab (off the kick)", group: "House", pattern: steps("..X..x-...X-.x..") },
 
   { id: "dub-dotted", label: "Dotted stabs", group: "Dub", pattern: steps("X..x..x.........") },
   { id: "dub-sparse", label: "Sparse (1 · 3+)", group: "Dub", pattern: steps("X.........x.....") },
@@ -86,6 +88,8 @@ export const RHYTHMS: Rhythm[] = [
   { id: "techno-332", label: "16th 3-3-2", group: "Techno", pattern: steps("X..x..x.X..x..x.") },
   { id: "techno-stab", label: "Syncopated stab", group: "Techno", pattern: steps("...X..x....x..x.") },
   { id: "techno-offbeat-16", label: "Off-16ths", group: "Techno", pattern: steps(".x.x.x.x.x.x.x.x") },
+  // Inner City, "Good Life": a hit every third 16th.
+  { id: "dotted-8ths", label: "Dotted 8ths", group: "Techno", pattern: steps("X..x..x..x..x...") },
 
   { id: "quarters", label: "Quarters", group: "Pulse", pattern: steps("X--.x--.x--.x--.") },
   { id: "eighths", label: "Eighths", group: "Pulse", pattern: steps("X.x.x.x.x.x.x.x.") },

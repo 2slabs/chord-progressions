@@ -1,25 +1,40 @@
 # chord progressions
 
-A chord progression generator for Ableton Live, tuned for techno, dub techno and house. Right-click an empty clip slot (or a time selection in Arrangement View) on a MIDI track, pick a style, audition, and insert the result as a MIDI clip.
+A chord progression generator for Ableton Live, tuned for techno, dub techno and house. Start from scratch, or from an existing bassline or melody and get chords that fit it. Pick a style, audition, and insert the result as a MIDI clip.
 
 A [2sl](https://2sl.to) project. Built on Ableton's Extensions SDK (public beta).
 
 ## What it does
 
-- **Styles** set everything at once, and every control stays editable:
+Right-click → **Generate Chord Progression…**
+
+| where | what it follows | where the chords go |
+|---|---|---|
+| a MIDI clip | that clip (a bassline, a melody, or chords to restyle) | a new "Chords" track or another MIDI track, same scene slot (or the same arrangement position), in the clip's colour |
+| an empty clip slot | nothing (from scratch), or a MIDI clip in the same scene | that slot |
+| a time selection on a MIDI track | nothing, or other tracks' clips under the selection | that track, at the selection |
+
+Following a clip:
+- The key comes from Live's Scale Mode when it's on, otherwise it's detected from the clip. You can change it.
+- The clip's length sets the number of chords, and **chords** sets how often they change.
+- Each of the style's real progressions, in every rotation, is scored against the notes under each chord. The bass note counts most, and notes that rub a semitone against the chord count against it. The best fit wins. When none fits, it picks the best of the style's chords bar by bar, and the hint says which it did.
+- **generate** (g) picks another good fit, and ↻ on a pad picks another chord that fits that stretch.
+- **with clip** plays the followed clip under the preview.
+
+- **Styles** set everything at once, and every control stays editable. Each genre picks from **real progressions** (taken from transcriptions and analyses of Kerri Chandler, Masters at Work, Mr Fingers, Inner City, Crystal Waters, MK, Galaxy 2 Galaxy and others; sources in [RESEARCH.md](RESEARCH.md)). A short loop repeats to fill the clip, sometimes with a different last chord:
 
   | style | harmony | rhythm |
   |---|---|---|
-  | dub techno | one minor-11 shape moved to new roots (chord memory) | sparse dotted stabs |
-  | deep house | minor 9ths in Dorian, i–iv, i–♭VII–♭VI | swung stabs that land a 16th early |
-  | classic house | 7ths, I–vi–IV–V and ii–V | 3-3-4 piano riff |
-  | detroit techno | minor 9th pads over i, ♭VI, ♭VII, ♭III | held pads |
-  | hypnotic techno | quartal stacks in Phrygian, ♭II moves | 16th 3-3-2 stabs |
+  | dub techno | mostly one minor 7th, sometimes moved to iv, ♭vii or v (chord memory) | sparse dotted stabs |
+  | deep house | two-chord minor 9th loops (i–iv, i–v, i–♭vii, i–♭vi), i–♭IIImaj7–v, i–♭VImaj7–♭VII; root left to the bass | stabs off the kick, swung, landing a 16th early |
+  | classic house | Imaj7–IVmaj7, ii–V–I–vi; Chicago minor loops (♭III–iv–i, iv–♭VI–♭VII) | 3-3-4 piano riff |
+  | detroit techno | i–v–♭vii–iv, all minor ("Good Life"); IVmaj7–iii7 in major | held 9th pads |
+  | hypnotic techno | one minor stab, or the same shape moved to ♭II, ♭vii, iv or v | single 16ths off the beat |
   | functional (pop) | tonic–predominant–dominant triads | sustained |
 
 - **Chords:** triads, 7ths, 9ths, 11ths, sus2, sus4, quartal. Names come from the actual notes (`Am11`, `♭VIImaj9`). Clashing ♭9s are left out.
 - **Movement:** *diatonic* (chords built from the scale) or *parallel* (one shape moved to each root).
-- **Voicing:** smooth (minimal movement), close, or spread, with low/mid/high register and an optional bass note.
+- **Voicing:** smooth (minimal movement), close, spread, or rootless (the root left to the bass, the deep house stab), with low/mid/high register and an optional bass note.
 - **Rhythm:** 21 patterns (held, house, dub, techno, pulse, arpeggio), or draw your own on the 16-step grid. 16th swing from 50–75%, and push (chord changes land a 16th early).
 - **Preview:** hear the progression in the dialog at your Set's tempo (dub styles get a dotted-8th delay). Click a pad to hear one chord; ↻ re-rolls it.
 - Follows Live's Scale Mode key on first use, and remembers your settings.
@@ -62,8 +77,10 @@ Don't use `--verbose` with the beta.1 CLI: it never detects the connection and q
 | path | what |
 |---|---|
 | `src/theory.ts` | scales, chord building and naming, progression generation, voicing |
+| `src/analysis.ts` | key and chord detection from any MIDI (shared with bassline) |
+| `src/harmonize.ts` | chords for an existing clip: scoring the style's progressions against it |
 | `src/rhythm.ts` | rhythm patterns (16-step strings), swing, push |
-| `src/styles.ts` | genre presets and their chord-movement tendencies |
+| `src/styles.ts` | genre presets and their real progressions |
 | `src/extension.ts` | Live side: context menus, dialog, clip creation, saved settings |
 | `ui/` | the dialog: `interface.html` + `app.ts`, bundled and inlined into one string by `build.ts` |
 | `ui/2sl/` | the 2sl-ui design system (synced copy; edit in the `2sl-ui` repo) |

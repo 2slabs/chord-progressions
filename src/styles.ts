@@ -60,20 +60,62 @@ const CLASSIC_HOUSE: number[][] = [
   [60, 0, 20, 0, 0, 20, 0],
 ];
 
+// Real progressions, from transcriptions and analyses (RESEARCH.md has the sources).
+// Numerals are relative to the tonic, flats from the major scale; case = quality.
+
+// Dub techno: harmony is mostly static (one tonal centre, a few minor stabs shifted by
+// chord memory). A one-chord loop repeats; two-chord loops move to iv, ♭VII, v or ♭VI.
+const DUB_PROGRESSIONS: Harmony["progressions"] = {
+  minor: [[4, "i"], [3, "i iv"], [3, "i bvii"], [2, "i v"], [1, "i bvi"]],
+};
+
+// Deep house: mostly two minor 7ths (Kerri Chandler: D♯m7–G♯m7, Cm7–Gm7, Cm–A♯m,
+// D♯m–Bm; Disclosure i7–v7), plus Masters at Work's i7–♭IIImaj7–v7, Mr Fingers'
+// i–♭VImaj7–♭VII, Modjo's ♭VI–iv–i–v and the "Levelling Up" 8-bar loop with its bar-8 change.
+const DEEP_PROGRESSIONS: Harmony["progressions"] = {
+  minor: [
+    [4, "i iv"], [4, "i v"], [3, "i bvii"], [2, "i bvi"], [2, "v bVI"], [1, "iv v"],
+    [3, "i bIII v"], [3, "i bVI bVII"], [2, "i v iv"], [1, "i v vi"],
+    [2, "bVI iv i v"], [1, "i iv bVI iv"], [1, "v bVI iv bVII7"], [1, "i bVII bVI bVII"], [1, "i v bvii iv"],
+    [2, "i i v v i i v iii"],
+  ],
+  major: [[2, "ii iii"], [2, "IV iii"], [1, "ii V I vi"], [1, "I vi IV ii"]],
+};
+
+// Classic house: Frankie Knuckles' Imaj7–IVmaj7, Marshall Jefferson's ♭III–iv–i, Crystal
+// Waters' i7–v7sus4, MK's iv–♭VI–♭VII, Armand Van Helden's i7–IV–♭VII, Stardust's v7–♭VI7.
+const CLASSIC_PROGRESSIONS: Harmony["progressions"] = {
+  major: [[4, "I IV"], [2, "ii V I vi"], [2, "I iii V"], [1, "iii vi IV I"], [1, "I vi V iii"], [1, "vi IV I V"]],
+  minor: [
+    [3, "bIII iv i"], [3, "i vsus4"], [3, "iv bVI bVII"], [2, "i IV bVII7"], [2, "v bVI"], [1, "bVI bIII bVI bVII7"],
+  ],
+};
+
+// Detroit: chord-memory minors (Inner City's "Good Life" is Bm–F♯m–Am–Em, i–v–♭vii–iv, all
+// minor) and the jazzier major side (Galaxy 2 Galaxy's IVmaj7–iii7, Los Hermanos' ii7–iii7).
+const DETROIT_PROGRESSIONS: Harmony["progressions"] = {
+  minor: [[4, "i v bvii iv"], [2, "i iv"], [2, "i bvii"], [2, "i iv v"], [1, "i bvi bvii"]],
+  major: [[3, "IV iii"], [3, "ii iii"], [2, "I vi IV ii"], [1, "V IV"]],
+};
+
+// Hypnotic techno: one chord, or the same shape moved (parallel stabs, as in UR's "Timeline").
+const HYPNOTIC_PROGRESSIONS: Harmony["progressions"] = {
+  minor: [[4, "i"], [2, "i bII"], [2, "i bvii"], [1, "i iv"], [1, "i v"]],
+};
+
 export const STYLES: Style[] = [
   {
     id: "dub-techno",
     label: "Dub Techno",
     hue: "blue",
-    blurb: "One minor 11 shape shifted to new roots, long sparse stabs – leave space for the delay.",
+    blurb: "Mostly one minor 7th stab, sometimes shifted to iv or ♭VII; short, sparse hits that leave space for the delay.",
     scale: "Minor",
-    chord: "eleventh",
-    // Degrees: –, ii, ♭III, iv, v, ♭VI, ♭VII
-    harmony: { movement: "parallel", roots: [0, 0, 12, 34, 22, 14, 26], transitions: DETROIT },
+    chord: "seventh",
+    harmony: { movement: "parallel", roots: [0, 0, 12, 34, 22, 14, 26], transitions: DETROIT, progressions: DUB_PROGRESSIONS },
     count: 2,
     beatsPerChord: 8,
     rhythm: "dub-dotted",
-    voicing: "smooth",
+    voicing: "close",
     register: 60,
     bass: false,
     swing: 50,
@@ -83,14 +125,17 @@ export const STYLES: Style[] = [
     id: "deep-house",
     label: "Deep House",
     hue: "green",
-    blurb: "Minor 9ths in Dorian, i–iv and i–♭VII–♭VI movement, swung stabs that land early.",
+    blurb: "Two-chord minor 9th loops with the root left to the bass, stabs off the kick that land a 16th early.",
     scale: "Dorian",
     chord: "ninth",
-    harmony: { movement: "diatonic", transitions: DEEP_HOUSE, tonicStart: 0.85 },
-    count: 4,
+    harmony: {
+      movement: "diatonic", transitions: DEEP_HOUSE, tonicStart: 0.85, progressions: DEEP_PROGRESSIONS,
+      turnarounds: { minor: ["iii", "bvi", "v", "bVII", "iv"], major: ["V", "vi"] },
+    },
+    count: 2,
     beatsPerChord: 4,
-    rhythm: "house-stab",
-    voicing: "smooth",
+    rhythm: "deep-stab",
+    voicing: "rootless",
     register: 60,
     bass: false,
     swing: 58,
@@ -100,10 +145,13 @@ export const STYLES: Style[] = [
     id: "classic-house",
     label: "Classic House",
     hue: "orange",
-    blurb: "Piano-house 7ths with functional movement and the 3-3-4 piano riff.",
+    blurb: "Piano-house 7ths: Imaj7–IVmaj7 vamps and Chicago minor loops, the 3-3-4 piano riff.",
     scale: "Major",
     chord: "seventh",
-    harmony: { movement: "diatonic", transitions: CLASSIC_HOUSE },
+    harmony: {
+      movement: "diatonic", transitions: CLASSIC_HOUSE, progressions: CLASSIC_PROGRESSIONS,
+      turnarounds: { major: ["V", "ii", "IV"], minor: ["bVII7", "v"] },
+    },
     count: 4,
     beatsPerChord: 4,
     rhythm: "piano-house",
@@ -117,12 +165,12 @@ export const STYLES: Style[] = [
     id: "detroit",
     label: "Detroit Techno",
     hue: "red",
-    blurb: "Minor 9th pads sliding between i, ♭VI, ♭VII and ♭III, held or pulsing.",
+    blurb: "Chord-memory minors (i–v–♭vii–iv, all minor), wide 9th pads, held or pulsing.",
     scale: "Minor",
     chord: "ninth",
-    harmony: { movement: "diatonic", transitions: DETROIT, tonicStart: 0.9 },
+    harmony: { movement: "diatonic", transitions: DETROIT, tonicStart: 0.9, progressions: DETROIT_PROGRESSIONS },
     count: 4,
-    beatsPerChord: 8,
+    beatsPerChord: 4,
     rhythm: "sustain",
     voicing: "spread",
     register: 60,
@@ -134,14 +182,14 @@ export const STYLES: Style[] = [
     id: "hypnotic",
     label: "Hypnotic Techno",
     hue: "ink",
-    blurb: "One or two quartal stabs in Phrygian, ♭II moves, syncopated 16ths.",
+    blurb: "One minor stab, or the same shape moved to ♭II or ♭VII; single 16th hits off the beat.",
     scale: "Phrygian",
-    chord: "quartal",
+    chord: "triad",
     // Degrees: –, ♭II, ♭III, iv, v, ♭VI, ♭VII
-    harmony: { movement: "parallel", roots: [0, 34, 8, 16, 12, 8, 22], transitions: DEEP_HOUSE },
+    harmony: { movement: "parallel", roots: [0, 34, 8, 16, 12, 8, 22], transitions: DEEP_HOUSE, progressions: HYPNOTIC_PROGRESSIONS },
     count: 2,
     beatsPerChord: 8,
-    rhythm: "techno-332",
+    rhythm: "techno-stab",
     voicing: "close",
     register: 60,
     bass: false,

@@ -65,7 +65,67 @@ export interface Step {
   degree: number;
   /** Only used by the "mixed" chord type: this chord gets a 7th. */
   seventh: boolean;
+  /** From a progression template: the root in semitones above the key root, which may be outside the scale. */
+  root?: number;
+  /** From a progression template: the chord's quality (the chord type sets how far it's extended). */
+  quality?: Quality;
 }
+
+// ---- chords from progression templates ---------------------------------------------
+
+/**
+ * A chord's quality, independent of the scale. Real house and techno progressions often
+ * ignore diatonic quality: Inner City's "Good Life" is four minor chords (i v ♭vii iv),
+ * Kerri Chandler moves Cm to A♯m. So templates carry quality, not just a scale degree.
+ */
+export type Quality = "m" | "M" | "7" | "ø" | "sus2" | "sus4";
+
+/** Chord tones for a quality at the chord type's extension. */
+export function tonesFor(q: Quality, type: ChordType, seventh = false): number[] {
+  if (type === "sus2") return [0, 2, 7];
+  if (type === "sus4") return [0, 5, 7];
+  if (type === "quartal") return [0, 5, 10, 15];
+  const level = type === "triad" ? 3 : type === "mixed" ? (seventh ? 4 : 3) : type === "seventh" ? 4 : type === "ninth" ? 5 : 6;
+  const third = q === "m" || q === "ø" ? 3 : q === "sus2" ? 2 : q === "sus4" ? 5 : 4;
+  const fifth = q === "ø" ? 6 : 7;
+  const sev = q === "M" ? 11 : 10;
+  const sorted = (t: number[]) => t.sort((a, b) => a - b);
+  if (level === 3) return sorted([0, third, fifth]);
+  if (level === 4) return sorted([0, third, fifth, sev]);
+  if (level === 5) {
+    // 9ths drop the 5th (it adds little and muddies stabs); a sus2's 2 becomes the 9
+    if (q === "ø") return [0, 3, 6, 10];
+    if (q === "sus2") return [0, 7, 10, 14];
+    return sorted([0, third, sev, 14]);
+  }
+  // 11ths: minor keeps its 3rd; major and dominant drop it (it clashes with the 11th)
+  if (q === "m") return [0, 3, 10, 14, 17];
+  if (q === "ø") return [0, 3, 6, 10, 17];
+  if (q === "sus4") return [0, 5, 10, 14];
+  return [0, sev, 14, 17];
+}
+
+const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11];
+const ROMAN_VALUE: Record<string, number> = { i: 0, ii: 1, iii: 2, iv: 3, v: 4, vi: 5, vii: 6 };
+
+/**
+ * Parse a roman numeral relative to the tonic, flats and sharps measured from the major
+ * scale (so minor-key chords are ♭III, ♭VI, ♭VII). Case gives the quality; "7" on an
+ * uppercase numeral means a dominant 7th; "ø", "sus2" and "sus4" as written.
+ *   "i" → minor on the tonic, "bVII" → major a whole step below, "bvii" → minor there.
+ */
+export function parseNumeral(text: string): { root: number; quality: Quality } {
+  const m = /^([b#♭♯]?)([ivIV]+)(ø|sus2|sus4|7)?$/.exec(text.trim());
+  if (!m || ROMAN_VALUE[m[2].toLowerCase()] === undefined) throw new Error(`not a numeral: ${text}`);
+  const shift = m[1] === "b" || m[1] === "♭" ? -1 : m[1] ? 1 : 0;
+  const root = (MAJOR_STEPS[ROMAN_VALUE[m[2].toLowerCase()]] + shift + 12) % 12;
+  const lower = m[2] === m[2].toLowerCase();
+  const quality: Quality = m[3] === "ø" ? "ø" : m[3] === "sus2" || m[3] === "sus4" ? m[3] : lower ? "m" : m[3] === "7" ? "7" : "M";
+  return { root, quality };
+}
+
+/** A weighted progression: [weight, "i7 iv7"]. */
+export type Template = [number, string];
 
 /** Scale tones `steps` scale-steps above `degree`, as semitones above that degree. */
 function stack(intervals: number[], degree: number, steps: number[]): number[] {
@@ -161,6 +221,27 @@ export function buildChord(
   type: ChordType,
   movement: Movement = "diatonic",
 ): Chord {
+  if (step.root !== undefined && step.quality) {
+    const root = step.root;
+    const minorish = intervals.includes(3) && !intervals.includes(4);
+    let q = movement === "parallel" ? (minorish ? "m" : "M") : step.quality;
+    // A major chord takes the 7th that's in the key: V in major and ♭VII or IV in minor are
+    // dominant 7ths, I, IV, ♭III and ♭VI are maj7s.
+    if (q === "M") {
+      const reference = minorish ? SCALES.Minor : SCALES.Major;
+      const has = (t: number) => reference.includes((root + t) % 12);
+      if (!has(11) && has(10)) q = "7";
+    }
+    const tones = tonesFor(q, type, step.seventh);
+    const names = noteNames(keyRoot, intervals);
+    return {
+      degree: step.degree,
+      root,
+      tones,
+      name: names[(keyRoot + root) % 12] + chordSymbol(tones),
+      numeral: numeralOf(root, tones),
+    };
+  }
   const tones = movement === "parallel"
     ? shapeOf(intervals, 0, type, step.seventh)
     : shapeOf(intervals, step.degree, type, step.seventh);
@@ -186,7 +267,44 @@ export interface Harmony {
   roots?: number[];
   /** Chance the progression opens on the tonic (default 0.75). */
   tonicStart?: number;
+  /**
+   * Real progressions for the style, by key quality. When one fits the chord count
+   * (exactly, or repeated), it's used instead of the transition weights.
+   */
+  progressions?: { minor?: Template[]; major?: Template[] };
+  /** Chords that may replace the last one when a short loop is repeated (the "bar 8" change). */
+  turnarounds?: { minor?: string[]; major?: string[] };
 }
+
+const isMinorish = (intervals: number[]) => intervals.includes(3) && !intervals.includes(4);
+
+function stepFor(intervals: number[], numeral: string, type: ChordType, rng: Rng): Step {
+  const { root, quality } = parseNumeral(numeral);
+  const degree = Math.max(0, intervals.findIndex((iv) => iv % 12 === root));
+  return { degree, seventh: rollSeventh(type, rng), root, quality };
+}
+
+/** A real progression that fits `count` chords, or null when the style has none. */
+function fromTemplates(intervals: number[], count: number, type: ChordType, harmony: Harmony, rng: Rng): Step[] | null {
+  const mode = isMinorish(intervals) ? "minor" : "major";
+  const pool = harmony.progressions?.[mode];
+  if (!pool?.length) return null;
+  const fits = pool
+    .map(([w, text]) => [w, text.split(/\s+/)] as [number, string[]])
+    .filter(([, p]) => p.length === count || count % p.length === 0);
+  if (!fits.length) return null;
+  const [, prog] = fits[pick(fits.map(([w]) => w), rng)];
+  const out = Array.from({ length: count }, (_, i) => prog[i % prog.length]);
+  // A repeated short loop may change its last chord, leading back round.
+  const turns = harmony.turnarounds?.[mode] ?? [];
+  if (count >= 4 && count > prog.length && turns.length && rng() < 0.4) {
+    const options = turns.filter((t) => t !== out[count - 2] && t !== out[0] && t !== out[count - 1]);
+    if (options.length) out[count - 1] = options[Math.floor(rng() * options.length)];
+  }
+  return out.map((n) => stepFor(intervals, n, type, rng));
+}
+
+const chordKey = (s: Step) => (s.root !== undefined ? `${s.root}${s.quality}` : `d${s.degree}`);
 
 // Classic tonic → predominant → dominant → tonic tendencies.
 export const FUNCTIONAL: number[][] = [
@@ -241,6 +359,8 @@ export function generate(
   harmony: Harmony,
   rng: Rng = Math.random,
 ): Step[] {
+  const real = fromTemplates(intervals, count, type, harmony, rng);
+  if (real) return real;
   const n = intervals.length;
   const stab = intervals.map((_, d) => stability(intervals, harmony, d));
   const tonicStart = harmony.movement === "parallel" ? 1 : harmony.tonicStart ?? 0.75;
@@ -270,6 +390,21 @@ export function reroll(
   harmony: Harmony,
   rng: Rng = Math.random,
 ): Step[] {
+  const mode = isMinorish(intervals) ? "minor" : "major";
+  const pool = harmony.progressions?.[mode];
+  if (pool?.length && steps[index].root !== undefined) {
+    // Swap in another chord the style really uses, avoiding this one and its neighbours.
+    const weights = new Map<string, number>();
+    for (const [w, text] of pool) for (const c of text.split(/\s+/)) weights.set(c, (weights.get(c) ?? 0) + w);
+    for (const c of harmony.turnarounds?.[mode] ?? []) weights.set(c, (weights.get(c) ?? 0) + 1);
+    const avoid = new Set([index, index - 1, index + 1].map((i) => chordKey(steps[(i + steps.length) % steps.length])));
+    const options = [...weights].filter(([c]) => !avoid.has(chordKey(stepFor(intervals, c, type, rng))));
+    if (options.length) {
+      const out = steps.slice();
+      out[index] = stepFor(intervals, options[pick(options.map(([, w]) => w), rng)][0], type, rng);
+      return out;
+    }
+  }
   const n = intervals.length;
   const prev = steps[(index - 1 + steps.length) % steps.length].degree;
   const next = steps[(index + 1) % steps.length].degree;
@@ -290,8 +425,10 @@ export function reroll(
  * smooth: inversions that minimise movement between chords.
  * close: root position, packed tight.
  * spread: open (drop-2) voicings, also chosen for smooth movement.
+ * rootless: the root left to the bass (as in Kerri Chandler's stabs, often with the 7th at
+ *   the bottom), chosen for smooth movement. Triads keep their root.
  */
-export type VoicingMode = "smooth" | "close" | "spread";
+export type VoicingMode = "smooth" | "close" | "spread" | "rootless";
 
 export interface VoicingOptions {
   /** MIDI pitch the voicings gravitate around (e.g. 60 = C3 in Live). */
@@ -314,8 +451,9 @@ function spread(v: number[]): number[] {
 function candidates(keyRoot: number, chord: Chord, opts: VoicingOptions): number[][] {
   const out: number[][] = [];
   const base = keyRoot + chord.root;
-  for (let inv = 0; inv < chord.tones.length; inv++) {
-    const shape = chord.tones.map((t, i) => (i < inv ? t + 12 : t)).sort((a, b) => a - b);
+  const tones = opts.mode === "rootless" && chord.tones.length >= 4 ? chord.tones.slice(1) : chord.tones;
+  for (let inv = 0; inv < tones.length; inv++) {
+    const shape = tones.map((t, i) => (i < inv ? t + 12 : t)).sort((a, b) => a - b);
     for (let oct = -4; oct <= 4; oct++) {
       let v = shape.map((t) => base + t + 12 * oct);
       if (opts.mode === "spread") v = spread(v);

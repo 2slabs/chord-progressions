@@ -25,6 +25,9 @@
       .swing-value { min-width: 8ch; }
       .inline { display: inline-flex; align-items: center; gap: calc(var(--unit) * 2); }
       #cards { flex: 1; min-height: 0; }
+      #source { min-width: 260px; }
+      #target { min-width: 220px; }
+      .hidden { display: none !important; }
     </style>
   </head>
   <body>
@@ -40,6 +43,11 @@
       <span class="swatch" aria-hidden="true"></span>
       <select id="style" aria-label="style"></select>
       <span class="ui-hint" id="blurb"></span>
+    </div>
+
+    <div class="ui-params">
+      <span class="label" title="write chords for a bassline or melody clip, or start from nothing">follow</span>
+      <span class="inline"><select id="source" aria-label="clip to follow"></select><span class="ui-hint" id="fit"></span></span>
     </div>
 
     <div class="ui-params">
@@ -78,9 +86,15 @@
 
     <div class="ui-pads" id="cards"></div>
 
+    <div class="ui-params" id="into-row">
+      <span class="label">into</span>
+      <span class="inline"><select id="target" aria-label="track for the chord clip"></select><span class="ui-hint" id="where"></span></span>
+    </div>
+
     <footer class="ui-footer">
       <button class="ui-key" id="generate"><kbd>g</kbd>generate</button>
       <button class="ui-key" id="play"><kbd>space</kbd><span>preview</span></button>
+      <span class="inline"><span class="ui-label">with clip</span><button id="hear-source" aria-label="hear the followed clip in the preview"></button></span>
       <span class="spacer"></span>
       <button class="ui-key" id="cancel"><kbd>esc</kbd>cancel</button>
       <button class="ui-key primary" id="insert"><kbd>ret</kbd>insert clip</button>

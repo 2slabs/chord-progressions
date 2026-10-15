@@ -5,7 +5,9 @@ import {
 } from "../src/theory.ts";
 import { RHYTHMS, barOf, customRhythm, isRhythm, toNotes } from "../src/rhythm.ts";
 import { STYLES, styleById, type Style } from "../src/styles.ts";
-import type { Cancelled, Init, Result, Settings } from "../src/protocol.ts";
+import { detectLoopKey } from "../src/analysis.ts";
+import { harmonize, rerollToFit } from "../src/harmonize.ts";
+import type { Cancelled, Init, Result, Settings, SourceOption } from "../src/protocol.ts";
 import { applyTheme, closeDialog, fillSelect, radioGroup, slider, toggle } from "./2sl/ui.ts";
 
 declare global {
@@ -14,7 +16,7 @@ declare global {
   }
 }
 
-const init: Init = window.__INIT__ ?? { live: null, tempo: 122, saved: null };
+const init: Init = window.__INIT__ ?? demoInit();
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 // ---- state -----------------------------------------------------------------
@@ -58,7 +60,46 @@ function initialSettings(): Settings {
 let settings = initialSettings();
 const intervals = () => (settings.scale === "live" ? init.live!.intervals : SCALES[settings.scale]);
 const harmony = (): Harmony => ({ ...styleById(settings.style).harmony, movement: settings.movement });
-let steps: Step[] = generate(intervals(), settings.count, settings.chord, harmony());
+
+// ---- following a clip --------------------------------------------------------------
+
+const sources = init.sources ?? [];
+let sourceId = sources.some((s) => s.id === init.defaultSource) ? init.defaultSource! : "scratch";
+let target = init.defaultTarget ?? "new";
+const source = (): SourceOption | null => sources.find((s) => s.id === sourceId) ?? null;
+/** How the last harmonisation went, for the hint next to the source. */
+let fitInfo = "";
+
+/** Following a clip: its key, unless Live's Scale Mode says otherwise. */
+function adoptKey(src: SourceOption) {
+  if (liveUsable) return;
+  const k = detectLoopKey(src.notes, src.length);
+  settings.root = k.root;
+  settings.scale = k.scale;
+}
+
+/** Chord count: set by the clip's length when following. */
+const chordCount = () => {
+  const src = source();
+  return src ? Math.max(1, Math.round(src.length / settings.beatsPerChord)) : settings.count;
+};
+/** Clip length in beats. */
+const clipLength = () => source()?.length ?? settings.count * settings.beatsPerChord;
+
+function newSteps(): Step[] {
+  const src = source();
+  if (!src) {
+    fitInfo = "";
+    return generate(intervals(), settings.count, settings.chord, harmony());
+  }
+  const h = harmonize(src.notes, src.length, settings.root, intervals(), settings.beatsPerChord, settings.chord, harmony());
+  const how = h.score >= 1 ? "fits closely" : h.score >= 0.6 ? "fits" : "loose fit: try changing chords more often";
+  fitInfo = `${h.from === "real" ? "a real progression" : "chord by chord"}, ${how}`;
+  return h.steps;
+}
+
+if (source()) adoptKey(source()!);
+let steps: Step[] = newSteps();
 
 function chords() {
   return steps.map((s) => buildChord(settings.root, intervals(), s, settings.chord, settings.movement));
@@ -74,10 +115,13 @@ function voicings() {
 }
 
 function notes(): Note[] {
+  const length = clipLength();
   return toNotes(voicings(), settings.beatsPerChord, settings.bass, settings.rhythm, {
     swing: settings.swing,
     push: settings.push,
-  });
+  })
+    .filter((n) => n.startTime < length - 1e-9)
+    .map((n) => ({ ...n, duration: Math.min(n.duration, length - n.startTime) }));
 }
 
 // ---- controls ----------------------------------------------------------------
@@ -103,6 +147,29 @@ function dropdown(id: string, options: { value: string; label: string; group?: s
 }
 
 function setupControls() {
+  // what to follow
+  const sourceEl = $<HTMLSelectElement>("source");
+  fillSelect(sourceEl, [...sources.map((s) => ({ value: s.id, label: s.label })), { value: "scratch", label: "nothing (from scratch)" }]);
+  sourceEl.classList.add("ui-select");
+  sourceEl.disabled = !sources.length;
+  sourceEl.onchange = () => {
+    sourceId = sourceEl.value;
+    if (source()) adoptKey(source()!);
+    syncs.forEach((f) => f());
+    regenerate();
+  };
+  syncs.push(() => (sourceEl.value = sourceId));
+
+  // where the clip goes
+  if (init.targets) {
+    dropdown("target", init.targets.map((t) => ({ value: t.id, label: t.disabled ? `${t.label} (${t.disabled})` : t.label })), () => target, (v) => (target = v));
+    for (const o of $<HTMLSelectElement>("target").options) o.disabled = !!init.targets.find((t) => t.id === o.value)?.disabled;
+  } else {
+    $("target").classList.add("hidden");
+  }
+  $("where").textContent = init.where ?? "";
+  $("into-row").classList.toggle("hidden", !init.targets && !init.where);
+
   dropdown("style", STYLES.map((s) => ({ value: s.id, label: s.label.toLowerCase() })), () => settings.style, (v) => {
     settings = { ...fromStyle(styleById(v), settings.root), theme: settings.theme };
     syncs.forEach((f) => f());
@@ -111,7 +178,8 @@ function setupControls() {
 
   dropdown("root", ROOT_LABELS.map((label, i) => ({ value: String(i), label })), () => String(settings.root), (v) => {
     settings.root = Number(v);
-    changed(); // same degrees, transposed
+    if (source()) regenerate(); // a new key needs chords that fit the clip
+    else changed(); // same degrees, transposed
   });
 
   const scales = scaleKeys.map((k) => ({ value: k, label: k.toLowerCase() }));
@@ -119,13 +187,24 @@ function setupControls() {
   dropdown("scale", scales, () => settings.scale, (v) => {
     const sameSize = (v === "live" ? init.live!.intervals : SCALES[v]).length === intervals().length;
     settings.scale = v;
-    if (sameSize) changed();
+    if (sameSize && !source()) changed();
     else regenerate();
   });
 
+  const countEl = $<HTMLSelectElement>("count");
   dropdown("count", [1, 2, 3, 4, 6, 8].map((n) => ({ value: String(n), label: `${n} chord${n === 1 ? "" : "s"}` })), () => String(settings.count), (v) => {
     settings.count = Number(v);
     regenerate();
+  });
+  // Following a clip, its length sets the count (shown, but not editable).
+  syncs.push(() => {
+    const n = chordCount();
+    countEl.disabled = !!source();
+    if (source()) {
+      if (![...countEl.options].some((o) => o.value === String(n))) countEl.append(new Option(`${n} chords`, String(n)));
+      countEl.value = String(n);
+      countEl.title = "set by the clip's length: change how often chords change instead";
+    } else countEl.title = "";
   });
   dropdown("chord", CHORD_LABELS.map(([value, label]) => ({ value, label })), () => settings.chord, (v) => {
     settings.chord = v as ChordType;
@@ -136,13 +215,18 @@ function setupControls() {
   syncs.push(
     radioGroup($("length"), LENGTHS, () => String(settings.beatsPerChord), (v) => {
       settings.beatsPerChord = Number(v);
-      changed();
+      if (source()) regenerate(); // new windows over the clip
+      else changed();
+    }),
+    toggle($("hear-source"), () => settings.hearSource ?? true, (on) => {
+      settings.hearSource = on;
+      restartPreview();
     }),
     radioGroup($("movement"), [["diatonic", "diatonic"], ["parallel", "parallel"]], () => settings.movement, (v) => {
       settings.movement = v as Movement;
       changed();
     }),
-    radioGroup($("voicing"), [["smooth", "smooth"], ["close", "close"], ["spread", "spread"]], () => settings.voicing, (v) => {
+    radioGroup($("voicing"), [["smooth", "smooth"], ["close", "close"], ["spread", "spread"], ["rootless", "rootless"]], () => settings.voicing, (v) => {
       settings.voicing = v as VoicingMode;
       changed();
     }),
@@ -214,7 +298,8 @@ function hueVar(hue: Style["hue"]) {
 
 function regenerate() {
   stopPreview();
-  steps = generate(intervals(), settings.count, settings.chord, harmony());
+  steps = newSteps();
+  syncs.forEach((f) => f());
   render();
 }
 
@@ -236,10 +321,15 @@ function render() {
   document.documentElement.style.setProperty("--hue", hueVar(style.hue));
   $("blurb").textContent = style.blurb.toLowerCase();
 
-  const bars = (settings.count * settings.beatsPerChord) / 4;
-  $("status").innerHTML = "<b></b><span></span>";
-  $("status").querySelector("b")!.textContent = keyName();
-  $("status").querySelector("span")!.textContent = `${bars} bar${bars === 1 ? "" : "s"}`;
+  const bars = Math.round((clipLength() / 4) * 100) / 100;
+  const src = source();
+  $("status").innerHTML = "<b></b><span></span><span></span>";
+  const parts = $("status").querySelectorAll("b, span");
+  parts[0].textContent = keyName();
+  parts[1].textContent = `${bars} bar${bars === 1 ? "" : "s"}`;
+  parts[2].textContent = src ? `following ${src.label}` : "";
+  $("fit").textContent = fitInfo;
+  $<HTMLButtonElement>("hear-source").disabled = !src;
   $("tempo").textContent = `${Math.round(init.tempo * 100) / 100} bpm`;
 
   renderSteps();
@@ -259,7 +349,10 @@ function render() {
     pad.onclick = () => audition(i);
     pad.querySelector<HTMLButtonElement>(".corner")!.onclick = (e) => {
       e.stopPropagation();
-      steps = reroll(intervals(), steps, i, settings.chord, harmony());
+      const src = source();
+      steps = src
+        ? rerollToFit(src.notes, src.length, settings.root, intervals(), settings.beatsPerChord, settings.chord, harmony(), steps, i)
+        : reroll(intervals(), steps, i, settings.chord, harmony());
       render();
       audition(i);
     };
@@ -307,8 +400,9 @@ function insert() {
   const list = chords();
   const result: Result = {
     name: `${keyName()} · ${list.map((c) => c.numeral).join("–")}`,
-    length: settings.count * settings.beatsPerChord,
+    length: clipLength(),
     notes: notes(),
+    target: init.targets ? target : undefined,
     settings,
   };
   closeDialog(JSON.stringify(result));
@@ -380,6 +474,16 @@ function schedule(list: Note[], fromBeat: number, beats: number) {
   const lead = 0.05 + 0.25 * spb; // room for a pushed first chord
   const t0 = ac.currentTime + lead;
   for (const n of list) playNote(ac, filter, n, t0 + (n.startTime - fromBeat) * spb, n.duration * spb);
+  const src = source();
+  if (src && (settings.hearSource ?? true)) {
+    const under = ac.createGain();
+    under.gain.value = 0.9;
+    under.connect(master);
+    for (const n of src.notes) {
+      if (n.startTime < fromBeat - 1e-9 || n.startTime >= fromBeat + beats) continue;
+      playNote(ac, under, n, t0 + (n.startTime - fromBeat) * spb, Math.min(n.duration, fromBeat + beats - n.startTime) * spb);
+    }
+  }
 
   const cells = [...$("steps").querySelectorAll("button")];
   let frame = 0;
@@ -421,7 +525,7 @@ function togglePreview() {
 }
 
 function startPreview() {
-  const total = steps.length * settings.beatsPerChord;
+  const total = clipLength();
   const player = schedule(notes(), 0, total);
   const secondsPerChord = settings.beatsPerChord * player.spb;
   const timers = steps.map((_, i) => setTimeout(() => highlight(i), (player.lead + i * secondsPerChord) * 1000));
@@ -452,6 +556,20 @@ function stopPreview() {
 
 function highlight(i: number) {
   document.querySelectorAll(".ui-pad").forEach((c, j) => c.classList.toggle("playing", j === i));
+}
+
+// Outside Live (npm run ui): a sample bassline to follow, in A minor (A A F G).
+function demoInit(): Init {
+  const bass = [45, 45, 41, 43].flatMap((r, bar) =>
+    [0, 1.5, 2.5, 3.5].map((o, k) => ({ pitch: k === 2 ? r + 12 : r, startTime: bar * 4 + o, duration: 0.4, velocity: k === 0 ? 110 : 90 })));
+  return {
+    live: null, tempo: 122, saved: null, mode: "clip",
+    sources: [{ id: "clip", label: "Bass · riff", notes: bass, length: 16 }],
+    defaultSource: "clip",
+    targets: [{ id: "new", label: "new track: chords" }, { id: "2", label: "Keys" }],
+    defaultTarget: "new",
+    where: "scene 1",
+  };
 }
 
 // Wait for the pixel font so nothing renders in the fallback first.

@@ -1,13 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  SCALES, buildChord, chordSymbol, generate, reroll, voice, type ChordType, type Harmony, type Rng,
+  SCALES, buildChord, chordSymbol, generate, parseNumeral, reroll, tonesFor, voice, type ChordType, type Harmony, type Rng,
 } from "../src/theory.ts";
 import { STYLES } from "../src/styles.ts";
 
 const seeded = (seed: number): Rng => () => {
   seed = (seed * 1664525 + 1013904223) % 4294967296;
   return seed / 4294967296;
+};
+/** mulberry32: well-spread from the first draw (the LCG above isn't, for nearby seeds). */
+const mixed = (seed: number): Rng => () => {
+  seed = (seed + 0x6d2b79f5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 const DIATONIC: Harmony = { movement: "diatonic" };
 const chord = (key: number, scale: string, degree: number, type: ChordType, movement: Harmony["movement"] = "diatonic") =>
@@ -78,8 +85,8 @@ test("parallel movement keeps the tonic's shape on every root", () => {
   assert.equal(flat3.numeral, "♭iii11");
 });
 
-test("generated progressions have the right length, no repeats, and loop cleanly", () => {
-  for (const style of STYLES) {
+test("the random walk (styles without real progressions) has no repeats and loops cleanly", () => {
+  for (const style of STYLES.filter((s) => !s.harmony.progressions)) {
     for (let seed = 1; seed <= 100; seed++) {
       for (const count of [1, 2, 4, 8]) {
         const steps = generate(SCALES[style.scale], count, style.chord, style.harmony, seeded(seed));
@@ -91,6 +98,64 @@ test("generated progressions have the right length, no repeats, and loop cleanly
   }
 });
 
+test("styles with real progressions play one of them (repeated to fill, maybe with a turnaround)", () => {
+  for (const style of STYLES.filter((s) => s.harmony.progressions)) {
+    for (const scale of [style.scale, "Minor", "Major"]) {
+      const mode = scale === "Major" ? "major" : "minor";
+      const pool = style.harmony.progressions![mode];
+      for (let seed = 1; seed <= 60; seed++) {
+        for (const count of [1, 2, 3, 4, 6, 8]) {
+          const steps = generate(SCALES[scale], count, style.chord, style.harmony, mixed(seed));
+          assert.equal(steps.length, count, `${style.id} ${count}`);
+          if (!pool || steps[0].root === undefined) continue; // no template fits: the random walk
+          const got = steps.map((s) => `${s.root}${s.quality}`);
+          const matches = pool.some(([, text]) => {
+            const p = text.split(" ").map((n) => { const c = parseNumeral(n); return `${c.root}${c.quality}`; });
+            return got.every((c, i) => c === p[i % p.length] || (i === count - 1 && count > p.length));
+          });
+          assert.ok(matches, `${style.id} ${scale} ${count}: ${got.join(" ")}`);
+        }
+      }
+    }
+  }
+});
+
+test("Good Life: i v ♭vii iv, all minor (B minor: Bm F♯m Am Em)", () => {
+  const steps = ["i", "v", "bvii", "iv"].map((n) => ({ degree: 0, seventh: false, ...parseNumeral(n) }));
+  assert.deepEqual(steps.map((s) => buildChord(11, SCALES.Minor, s, "triad").name), ["Bm", "F♯m", "Am", "Em"]);
+});
+
+test("numerals: flats from the major scale, case is quality", () => {
+  assert.deepEqual(parseNumeral("bVII"), { root: 10, quality: "M" });
+  assert.deepEqual(parseNumeral("bvi"), { root: 8, quality: "m" });
+  assert.deepEqual(parseNumeral("bVII7"), { root: 10, quality: "7" });
+  assert.deepEqual(parseNumeral("vsus4"), { root: 7, quality: "sus4" });
+  assert.deepEqual(parseNumeral("iii"), { root: 4, quality: "m" });
+  assert.throws(() => parseNumeral("x"));
+});
+
+test("template chords take the chord type's extension", () => {
+  assert.deepEqual(tonesFor("m", "ninth"), [0, 3, 10, 14]);
+  assert.deepEqual(tonesFor("M", "seventh"), [0, 4, 7, 11]);
+  assert.deepEqual(tonesFor("7", "eleventh"), [0, 10, 14, 17]);
+  assert.deepEqual(tonesFor("m", "triad"), [0, 3, 7]);
+  const named = (scale: string, n: string) => buildChord(0, SCALES[scale], { degree: 0, seventh: false, ...parseNumeral(n) }, "seventh").name;
+  assert.equal(named("Minor", "bVI"), "A♭maj7");
+  assert.equal(named("Minor", "bVII"), "B♭7", "♭VII is a dominant 7th in minor");
+  assert.equal(named("Major", "V"), "G7", "V is a dominant 7th in major");
+  assert.equal(named("Major", "IV"), "Fmaj7");
+});
+
+test("rootless voicing leaves the root to the bass", () => {
+  const chords = [{ degree: 0, seventh: false, ...parseNumeral("i") }, { degree: 0, seventh: false, ...parseNumeral("iv") }]
+    .map((s) => buildChord(9, SCALES.Dorian, s, "ninth"));
+  const v = voice(9, chords, { center: 60, mode: "rootless", bass: false });
+  v.forEach((notes, i) => {
+    assert.equal(notes.length, 3);
+    assert.ok(!notes.some((p) => p % 12 === (9 + chords[i].root) % 12), "no root");
+  });
+});
+
 test("parallel styles open on the tonic", () => {
   const dub = STYLES.find((s) => s.id === "dub-techno")!;
   for (let seed = 1; seed <= 50; seed++) {
@@ -98,13 +163,15 @@ test("parallel styles open on the tonic", () => {
   }
 });
 
-test("hypnotic techno favours the Phrygian ♭II", () => {
+test("hypnotic techno: one chord or a parallel move, always opening on i", () => {
   const style = STYLES.find((s) => s.id === "hypnotic")!;
-  let flat2 = 0;
-  for (let seed = 1; seed <= 300; seed++) {
-    if (generate(SCALES.Phrygian, 2, "quartal", style.harmony, seeded(seed))[1].degree === 1) flat2++;
+  const seen = new Set<number>();
+  for (let seed = 1; seed <= 200; seed++) {
+    const steps = generate(SCALES.Phrygian, 2, style.chord, style.harmony, mixed(seed));
+    assert.equal(steps[0].root, 0);
+    seen.add(steps[1].root!);
   }
-  assert.ok(flat2 > 60, `♭II chosen ${flat2}/300 times`);
+  assert.deepEqual([...seen].sort((a, b) => a - b), [0, 1, 5, 7, 10]);
 });
 
 test("works for non-heptatonic scales", () => {
